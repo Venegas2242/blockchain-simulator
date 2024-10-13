@@ -2,6 +2,7 @@ import React from 'react';
 import './Block.css';
 
 const Block = ({ block, previousBlock, isLast }) => {
+	/*
   const verifyProof = (previousHash, proof) => {
     // Si no hay bloque anterior (es el bloque génesis), consideramos la prueba válida
     if (!previousBlock) return true;
@@ -22,18 +23,16 @@ const Block = ({ block, previousBlock, isLast }) => {
     }
     return hash.toString(16).padStart(64, '0');
   };
-
-  const isProofValid = verifyProof(block.previous_hash, block.proof);
+*/
   const isPreviousHashValid = previousBlock ? (block.previous_hash === previousBlock.hash) : true;
 
   return (
-    <div className={`block ${isProofValid && isPreviousHashValid ? 'valid' : 'invalid'}`}>
+    <div className={`block ${isPreviousHashValid ? 'valid' : 'invalid'}`}>
       <h3>Block {block.index}</h3>
+      <p>Nonce: {block.nonce}</p>
       <p>Timestamp: {new Date(block.timestamp * 1000).toLocaleString()}</p>
       <p>Previous Hash: {block.previous_hash}</p>
       <p>Current Hash: {block.hash}</p>
-      <p>Proof: {block.proof}</p>
-      <p>Proof Valid: {isProofValid ? 'Yes' : 'No'}</p>
       <p>Previous Hash Valid: {isPreviousHashValid ? 'Yes' : 'No'}</p>
       <h4>Transactions:</h4>
       <ul>

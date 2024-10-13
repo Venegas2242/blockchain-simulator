@@ -8,20 +8,25 @@ class Blockchain:
         self.current_transactions = []
         self.nodes = set()
         self.balances = {}
-        self.difficulty = 4  # Número de ceros iniciales requeridos
-        self.new_block(previous_hash='1', proof=100)
+        self.last_block_hash = 0, 
+        self.new_block(previous_hash=self.last_block_hash) # GENESIS
 
-    def new_block(self, proof, previous_hash=None):
+    def new_block(self, previous_hash):
+        print()
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
             'transactions': self.current_transactions,
-            'proof': proof,
-            'previous_hash': previous_hash or self.hash(self.chain[-1]),
+            'previous_hash': previous_hash,
+            'nonce': None,
+            'hash': None
         }
         
         # Calcular el hash actual del bloque
-        block['hash'] = self.calculate_hash(block, proof)
+        block['nonce'], block['hash'] = self.calculate_hash(block)
+        
+        # Actualizar hash de ultimo bloque
+        self.last_block_chain = block['hash']
         
         # Procesar transacciones y actualizar balances
         for transaction in self.current_transactions:
@@ -56,24 +61,17 @@ class Blockchain:
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
-    def proof_of_work(self, last_block):
-        last_proof = last_block['proof']
-        last_hash = self.hash(last_block)
-
-        proof = 0
-        while self.valid_proof(last_proof, proof, last_hash) is False:
-            proof += 1
-
-        return proof
-
-    def valid_proof(self, last_proof, proof, last_hash):
-        guess = f'{last_proof}{proof}{last_hash}'.encode()
-        guess_hash = hashlib.sha256(guess).hexdigest()
-        return guess_hash[:self.difficulty] == "0" * self.difficulty
-
-    def calculate_hash(self, block, proof):
-        block_string = json.dumps(block, sort_keys=True)
-        return hashlib.sha256(f"{block_string}{proof}".encode()).hexdigest()
+    def calculate_hash(self, block):
+        nonce = 0
+        while True:
+            # Crear el string del bloque y codificarlo
+            block_string = json.dumps(block, sort_keys=True).encode() + str(nonce).encode()
+            # Calcular hash
+            hash_resultado = hashlib.sha256(block_string).hexdigest()
+            # Inicio de ceros
+            if hash_resultado.startswith('0000'):
+                return nonce, hash_resultado
+            nonce += 1
 
     def mine(self, miner_address):
         # Añade la transacción de recompensa
@@ -83,16 +81,8 @@ class Blockchain:
             amount=1,
             signature=None  # Las transacciones de recompensa no necesitan firma
         )
-
-        # Obtener el último bloque
-        last_block = self.last_block
-
-        # Encontrar el nuevo proof
-        proof = self.proof_of_work(last_block)
-
-        # Crear el nuevo bloque
-        previous_hash = self.hash(last_block)
-        block = self.new_block(proof, previous_hash)
+        
+        block = self.new_block(previous_hash=self.last_block_chain)
 
         return block
 
