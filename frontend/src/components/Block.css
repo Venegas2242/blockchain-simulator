@@ -1,29 +1,28 @@
+.blockchain-container {
+  margin-top: 20px;
+  overflow-x: auto;
+  padding-bottom: 20px; /* Espacio para el scrollbar */
+}
+
+.blockchain {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 20px; /* Espacio entre bloques */
+  padding: 20px 0;
+}
+
 .block {
+  flex: 0 0 auto; /* Evita que los bloques se encojan */
+  min-width: 300px; /* Ancho mínimo para cada bloque */
+  max-width: 600px; /* Ancho máximo para evitar bloques extremadamente anchos */
+  width: auto; /* Permite que el bloque se expanda según el contenido */
   border: 2px solid #4CAF50;
   border-radius: 10px;
   padding: 15px;
-  margin: 10px;
   background-color: #f1f8e9;
-  min-width: 250px;
-  display: inline-block;
-  vertical-align: top;
   position: relative;
-}
-
-.block.valid {
-  border-color: #4CAF50;
-}
-
-.block.invalid {
-  border-color: #FF5722;
-}
-
-.arrow {
-  position: absolute;
-  right: -20px;
-  top: 50%;
-  font-size: 24px;
-  color: #4CAF50;
+  word-wrap: break-word; /* Permite que las palabras largas se rompan */
 }
 
 .block h3 {
@@ -33,13 +32,31 @@
 
 .block p {
   margin: 5px 0;
+  word-break: break-all; /* Rompe palabras largas */
 }
 
 .block ul {
   padding-left: 20px;
   margin: 5px 0;
+  list-style-type: none; /* Quita los puntos de la lista */
 }
 
 .block li {
   font-size: 0.9em;
+  margin-bottom: 5px;
+  word-break: break-all; /* Rompe palabras largas en las transacciones */
+}
+
+.arrow {
+  position: absolute;
+  right: -15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 24px;
+  color: #4CAF50;
+  z-index: 1;
+}
+
+.hash, .address {
+  word-break: break-all; /* Asegura que los hashes largos se rompan */
 }

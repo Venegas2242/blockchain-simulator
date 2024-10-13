@@ -8,11 +8,10 @@ class Blockchain:
         self.current_transactions = []
         self.nodes = set()
         self.balances = {}
-        self.last_block_hash = 0, 
-        self.new_block(previous_hash=self.last_block_hash) # GENESIS
+        self.last_block_hash = '1'
+        self.new_block(previous_hash=self.last_block_hash)  # GENESIS
 
     def new_block(self, previous_hash):
-        print()
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
@@ -22,34 +21,34 @@ class Blockchain:
             'hash': None
         }
         
-        # Calcular el hash actual del bloque
         block['nonce'], block['hash'] = self.calculate_hash(block)
+        self.last_block_hash = block['hash']
         
-        # Actualizar hash de ultimo bloque
-        self.last_block_chain = block['hash']
-        
-        # Procesar transacciones y actualizar balances
         for transaction in self.current_transactions:
             sender = transaction['sender']
             recipient = transaction['recipient']
             amount = transaction['amount']
             
-            if sender != "0":  # No descontar si es una recompensa de minado
-                self.balances[sender] = self.get_balance(sender) - amount
+            self.balances[sender] = self.get_balance(sender) - amount
             self.balances[recipient] = self.get_balance(recipient) + amount
 
         self.current_transactions = []
         self.chain.append(block)
         return block
 
-    def new_transaction(self, sender, recipient, amount, signature):
+    def new_transaction_and_mine(self, sender, recipient, amount, signature):
+        if self.get_balance(sender) < amount:
+            raise ValueError("Insufficient funds")
+
         self.current_transactions.append({
             'sender': sender,
             'recipient': recipient,
             'amount': amount,
             'signature': signature
         })
-        return self.last_block['index'] + 1
+
+        previous_hash = self.last_block['hash']
+        return self.new_block(previous_hash)
 
     @property
     def last_block(self):
@@ -57,34 +56,29 @@ class Blockchain:
 
     @staticmethod
     def hash(block):
-        # Asegúrate de ordenar las claves del diccionario para obtener un hash consistente
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
     def calculate_hash(self, block):
         nonce = 0
         while True:
-            # Crear el string del bloque y codificarlo
             block_string = json.dumps(block, sort_keys=True).encode() + str(nonce).encode()
-            # Calcular hash
             hash_resultado = hashlib.sha256(block_string).hexdigest()
-            # Inicio de ceros
             if hash_resultado.startswith('0000'):
                 return nonce, hash_resultado
             nonce += 1
 
-    def mine(self, miner_address):
-        # Añade la transacción de recompensa
-        self.new_transaction(
-            sender="0",
-            recipient=miner_address,
-            amount=1,
-            signature=None  # Las transacciones de recompensa no necesitan firma
-        )
-        
-        block = self.new_block(previous_hash=self.last_block_chain)
-
-        return block
-
     def get_balance(self, address):
         return self.balances.get(address, 0)
+
+    # Mantenemos el método mine separado para cuando se quiera minar sin transacción
+    def mine(self, miner_address):
+        self.current_transactions.append({
+            'sender': "0",
+            'recipient': miner_address,
+            'amount': 1,
+            'signature': None
+        })
+        
+        previous_hash = self.last_block['hash']
+        return self.new_block(previous_hash)

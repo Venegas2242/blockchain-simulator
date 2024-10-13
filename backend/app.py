@@ -43,32 +43,26 @@ def new_transaction():
         if not all(k in values for k in required):
             return jsonify({'message': 'Missing values'}), 400
 
-        values['sender'] = clean_public_key(values['sender'])
-        values['recipient'] = clean_public_key(values['recipient'])
+        sender = clean_public_key(values['sender'])
+        recipient = clean_public_key(values['recipient'])
+        amount = float(values['amount'])
 
-        sender_balance = blockchain.get_balance(values['sender'])
-        if sender_balance < float(values['amount']):
-            return jsonify({'message': 'Insufficient funds'}), 400
-
-        index = blockchain.new_transaction(values['sender'], values['recipient'], float(values['amount']), values['signature'])
-        
-        # Minar un nuevo bloque inmediatamente después de la transacción
-        block = blockchain.mine(values['recipient'])
+        # Crear la transacción y minar el bloque inmediatamente
+        block = blockchain.new_transaction_and_mine(sender, recipient, amount, values['signature'])
         
         response = {
-            'message': f'Transaction added to Block {block["index"]}',
-            'block': block
+            'message': f'Transaction processed and added to Block {block["index"]}'
         }
         return jsonify(response), 201
+    except ValueError as ve:
+        return jsonify({'message': str(ve)}), 400
     except Exception as e:
-        app.logger.error(f"Error creating new transaction: {str(e)}")
+        app.logger.error(f"Error processing transaction: {str(e)}")
         app.logger.error(traceback.format_exc())
-        return jsonify({'message': f'Error creating new transaction: {str(e)}'}), 500
+        return jsonify({'message': f'Error processing transaction: {str(e)}'}), 500
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
-    if len(blockchain.chain) == 0:
-        blockchain.new_block(previous_hash='1', proof=100)
     response = {
         'chain': blockchain.chain,
         'length': len(blockchain.chain),

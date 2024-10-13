@@ -1,46 +1,32 @@
 import React from 'react';
-import './Block.css';
+import './Block.css'; // Asegúrate de que este archivo contiene los estilos actualizados
 
-const Block = ({ block, previousBlock, isLast }) => {
-	/*
-  const verifyProof = (previousHash, proof) => {
-    // Si no hay bloque anterior (es el bloque génesis), consideramos la prueba válida
-    if (!previousBlock) return true;
-
-    const guess = `${previousBlock.proof}${proof}${previousHash}`;
-    const guessHash = calculateHash(guess);
-    return guessHash.startsWith('0000');  // Ajusta según la dificultad en el backend
-  };
-
-  const calculateHash = (str) => {
-    // Implementación simple de SHA-256 para fines de demostración
-    // En una aplicación real, usa una biblioteca criptográfica adecuada
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convierte a un entero de 32 bits
-    }
-    return hash.toString(16).padStart(64, '0');
-  };
-*/
-  const isPreviousHashValid = previousBlock ? (block.previous_hash === previousBlock.hash) : true;
-
+const Block = ({ block, isLast }) => {
   return (
-    <div className={`block ${isPreviousHashValid ? 'valid' : 'invalid'}`}>
+    <div className="block">
       <h3>Block {block.index}</h3>
       <p>Nonce: {block.nonce}</p>
       <p>Timestamp: {new Date(block.timestamp * 1000).toLocaleString()}</p>
-      <p>Previous Hash: {block.previous_hash}</p>
-      <p>Current Hash: {block.hash}</p>
-      <p>Previous Hash Valid: {isPreviousHashValid ? 'Yes' : 'No'}</p>
+      <p className="hash">
+        <strong>Previous Hash:</strong> {block.previous_hash}
+      </p>
+      <p className="hash">
+        <strong>Current Hash:</strong> {block.hash}
+      </p>
+      <p>Previous Hash Valid: {block.previous_hash_valid ? 'Yes' : 'No'}</p>
       <h4>Transactions:</h4>
       <ul>
         {block.transactions.map((transaction, index) => (
           <li key={index}>
-            From: {transaction.sender.substring(0, 10)}...
-            To: {transaction.recipient.substring(0, 10)}...
-            Amount: {transaction.amount}
+            <div className="address">
+              <strong>From:</strong> {transaction.sender}
+            </div>
+            <div className="address">
+              <strong>To:</strong> {transaction.recipient}
+            </div>
+            <div>
+              <strong>Amount:</strong> {transaction.amount}
+            </div>
           </li>
         ))}
       </ul>

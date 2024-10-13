@@ -1,31 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Blockchain from './components/Blockchain';
-import Transaction from './components/Transaction';
-import Wallet from './components/Wallet';
 import './App.css';
+import Wallet from './components/Wallet';
+import Transaction from './components/Transaction';
+import Blockchain from './components/Blockchain';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function App() {
-  const [blockchain, setBlockchain] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [balance, setBalance] = useState(null);
+  const [blockchain, setBlockchain] = useState([]);
   const [error, setError] = useState(null);
-
-  const fetchBlockchain = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_URL}/chain`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      setBlockchain(data.chain);
-      setError(null);
-    } catch (error) {
-      console.error('Error fetching blockchain:', error);
-      setError('Failed to fetch blockchain data. Please try again.');
-    }
-  }, []);
+  const [activeTab, setActiveTab] = useState('wallet');
 
   const fetchBalance = useCallback(async (address) => {
     if (!address) return;
@@ -43,6 +29,21 @@ function App() {
     }
   }, []);
 
+  const fetchBlockchain = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/chain`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setBlockchain(data.chain);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching blockchain:', error);
+      setError('Failed to fetch blockchain data. Please try again.');
+    }
+  }, []);
+
   useEffect(() => {
     const storedWallet = localStorage.getItem('wallet');
     if (storedWallet) {
@@ -53,16 +54,18 @@ function App() {
       generateWallet();
     }
     fetchBlockchain();
+  }, [fetchBalance, fetchBlockchain]);
 
+  useEffect(() => {
     const intervalId = setInterval(() => {
-      fetchBlockchain();
       if (wallet?.public_key) {
         fetchBalance(wallet.public_key);
       }
-    }, 10000);  // Actualizar cada 10 segundos en lugar de 5
+      fetchBlockchain();
+    }, 10000);
 
     return () => clearInterval(intervalId);
-  }, [fetchBlockchain, fetchBalance]);
+  }, [wallet, fetchBalance, fetchBlockchain]);
 
   const generateWallet = async () => {
     try {
@@ -134,15 +137,39 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <h1>Blockchain Simulator</h1>
-      {error && <div className="error">{error}</div>}
-      {wallet && <Wallet wallet={wallet} balance={balance} />}
-      <div className="actions">
-        <button onClick={handleMine}>Mine a Block</button>
-        <Transaction onNewTransaction={handleNewTransaction} publicKey={wallet?.public_key} />
-      </div>
-      <Blockchain chain={blockchain} />
+    <div className="container">
+      <header className="header">
+        <h1>Blockchain Simulator</h1>
+      </header>
+      <main className="main-content">
+        {error && <div className="error">{error}</div>}
+        <div className="tab-container">
+          <button className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} onClick={() => setActiveTab('wallet')}>Wallet</button>
+          <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transaction</button>
+          <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Mining</button>
+          <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
+        </div>
+        
+        <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
+          <h2>Your Wallet</h2>
+          {wallet && <Wallet wallet={wallet} balance={balance} />}
+        </div>
+        
+        <div className={`tab-content ${activeTab === 'transaction' ? 'active' : ''}`}>
+          <h2>New Transaction</h2>
+          <Transaction onNewTransaction={handleNewTransaction} publicKey={wallet?.public_key} />
+        </div>
+        
+        <div className={`tab-content ${activeTab === 'mining' ? 'active' : ''}`}>
+          <h2>Mining</h2>
+          <button onClick={handleMine}>Mine a Block</button>
+        </div>
+        
+        <div className={`tab-content ${activeTab === 'blockchain' ? 'active' : ''}`}>
+          <h2>Blockchain</h2>
+          <Blockchain chain={blockchain} />
+        </div>
+      </main>
     </div>
   );
 }
