@@ -1,0 +1,45 @@
+.block {
+  border: 2px solid #4CAF50;
+  border-radius: 10px;
+  padding: 15px;
+  margin: 10px;
+  background-color: #f1f8e9;
+  min-width: 250px;
+  display: inline-block;
+  vertical-align: top;
+  position: relative;
+}
+
+.block.valid {
+  border-color: #4CAF50;
+}
+
+.block.invalid {
+  border-color: #FF5722;
+}
+
+.arrow {
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  font-size: 24px;
+  color: #4CAF50;
+}
+
+.block h3 {
+  margin-top: 0;
+  color: #2E7D32;
+}
+
+.block p {
+  margin: 5px 0;
+}
+
+.block ul {
+  padding-left: 20px;
+  margin: 5px 0;
+}
+
+.block li {
+  font-size: 0.9em;
+}

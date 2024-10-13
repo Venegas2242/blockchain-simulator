@@ -1,0 +1,11 @@
+.blockchain-container {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.blockchain {
+  display: flex;
+  flex-direction: row;
+  padding: 20px 0;
+  min-width: 100%;
+}
