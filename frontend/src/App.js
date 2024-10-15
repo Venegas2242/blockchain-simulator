@@ -3,6 +3,7 @@ import './App.css';
 import Wallet from './components/Wallet';
 import Transaction from './components/Transaction';
 import Blockchain from './components/Blockchain';
+import KeyManagement from './components/KeyManagement';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -21,6 +22,7 @@ function App() {
         throw new Error('Failed to fetch balance');
       }
       const data = await response.json();
+      console.log("Fetched balance:", data.balance);
       setBalance(data.balance);
       setError(null);
     } catch (error) {
@@ -31,16 +33,24 @@ function App() {
 
   const fetchBlockchain = useCallback(async () => {
     try {
+      console.log("Fetching blockchain data...");
       const response = await fetch(`${API_URL}/chain`);
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+      
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorText = await response.text();
+        console.error("Error response body:", errorText);
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
       }
+      
       const data = await response.json();
+      console.log("Received blockchain data:", data);
       setBlockchain(data.chain);
       setError(null);
     } catch (error) {
       console.error('Error fetching blockchain:', error);
-      setError('Failed to fetch blockchain data. Please try again.');
+      setError(`Failed to fetch blockchain data: ${error.message}. Please try again.`);
     }
   }, []);
 
@@ -49,7 +59,7 @@ function App() {
     if (storedWallet) {
       const parsedWallet = JSON.parse(storedWallet);
       setWallet(parsedWallet);
-      fetchBalance(parsedWallet.public_key);
+      fetchBalance(parsedWallet.address);
     } else {
       generateWallet();
     }
@@ -58,8 +68,8 @@ function App() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (wallet?.public_key) {
-        fetchBalance(wallet.public_key);
+      if (wallet?.address) {
+        fetchBalance(wallet.address);
       }
       fetchBlockchain();
     }, 10000);
@@ -69,18 +79,27 @@ function App() {
 
   const generateWallet = async () => {
     try {
+      console.log("Starting wallet generation process");
       const response = await fetch(`${API_URL}/generate_keys`);
+      console.log("Response received from server");
+      
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Network response was not ok');
       }
+      
       const data = await response.json();
+      console.log("Wallet data received:", data);
+      
       setWallet(data);
       localStorage.setItem('wallet', JSON.stringify(data));
-      fetchBalance(data.public_key);
+      console.log("Wallet saved to local storage");
+      
+      fetchBalance(data.address);
       setError(null);
     } catch (error) {
       console.error('Error generating keys:', error);
-      setError('Failed to generate wallet keys. Please try again.');
+      setError(`Failed to generate wallet keys: ${error.message}. Please check the server logs for more details.`);
     }
   };
 
@@ -101,8 +120,8 @@ function App() {
       console.log('Transaction created:', data);
       
       await fetchBlockchain();
-      if (wallet?.public_key) {
-        await fetchBalance(wallet.public_key);
+      if (wallet?.address) {
+        await fetchBalance(wallet.address);
       }
     } catch (error) {
       console.error('Error creating transaction:', error);
@@ -117,7 +136,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ miner_address: wallet?.public_key }),
+        body: JSON.stringify({ miner_address: wallet?.address }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -127,8 +146,8 @@ function App() {
       console.log('Mined block:', data);
       
       await fetchBlockchain();
-      if (wallet?.public_key) {
-        await fetchBalance(wallet.public_key);
+      if (wallet?.address) {
+        await fetchBalance(wallet.address);
       }
     } catch (error) {
       console.error('Error mining:', error);
@@ -148,6 +167,7 @@ function App() {
           <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transaction</button>
           <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Mining</button>
           <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
+          <button className={`tab ${activeTab === 'keymanagement' ? 'active' : ''}`} onClick={() => setActiveTab('keymanagement')}>Key Management</button>
         </div>
         
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
@@ -157,7 +177,7 @@ function App() {
         
         <div className={`tab-content ${activeTab === 'transaction' ? 'active' : ''}`}>
           <h2>New Transaction</h2>
-          <Transaction onNewTransaction={handleNewTransaction} publicKey={wallet?.public_key} />
+          <Transaction onNewTransaction={handleNewTransaction} wallet={wallet} />
         </div>
         
         <div className={`tab-content ${activeTab === 'mining' ? 'active' : ''}`}>
@@ -168,6 +188,11 @@ function App() {
         <div className={`tab-content ${activeTab === 'blockchain' ? 'active' : ''}`}>
           <h2>Blockchain</h2>
           <Blockchain chain={blockchain} />
+        </div>
+
+        <div className={`tab-content ${activeTab === 'keymanagement' ? 'active' : ''}`}>
+          <h2>Key Management</h2>
+          <KeyManagement wallet={wallet} />
         </div>
       </main>
     </div>

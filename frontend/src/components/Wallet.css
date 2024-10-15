@@ -6,7 +6,7 @@
   margin-bottom: 20px;
 }
 
-.wallet h2 {
+.wallet h2, .wallet h3 {
   color: #2E7D32;
   margin-top: 0;
 }
@@ -27,4 +27,27 @@
 
 .wallet button:hover {
   background-color: #45a049;
+}
+
+.key-management {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #4CAF50;
+}
+
+.key-management form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.key-management input[type="password"] {
+  padding: 5px;
+  border: 1px solid #4CAF50;
+  border-radius: 5px;
+}
+
+.error {
+  color: #f44336;
+  margin-bottom: 10px;
 }
