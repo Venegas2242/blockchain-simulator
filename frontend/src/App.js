@@ -4,6 +4,7 @@ import Wallet from './components/Wallet';
 import Transaction from './components/Transaction';
 import Blockchain from './components/Blockchain';
 import KeyManagement from './components/KeyManagement';
+import TransactionVerification from './components/TransactionVerification';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -168,6 +169,7 @@ function App() {
           <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Mining</button>
           <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
           <button className={`tab ${activeTab === 'keymanagement' ? 'active' : ''}`} onClick={() => setActiveTab('keymanagement')}>Key Management</button>
+          <button className={`tab ${activeTab === 'verify' ? 'active' : ''}`} onClick={() => setActiveTab('verify')}>Verify Transaction</button>
         </div>
         
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
@@ -193,6 +195,11 @@ function App() {
         <div className={`tab-content ${activeTab === 'keymanagement' ? 'active' : ''}`}>
           <h2>Key Management</h2>
           <KeyManagement wallet={wallet} />
+        </div>
+
+        <div className={`tab-content ${activeTab === 'verify' ? 'active' : ''}`}>
+          <h2>Verify Transaction</h2>
+          <TransactionVerification />
         </div>
       </main>
     </div>

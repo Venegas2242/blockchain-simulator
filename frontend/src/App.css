@@ -120,3 +120,34 @@ input[type="text"], input[type="number"] {
   margin-bottom: 10px;
   border-radius: 4px;
 }
+
+.transaction-verification {
+  margin-bottom: 2rem;
+}
+
+.transaction-verification input[type="text"] {
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.verification-result {
+  margin-top: 1rem;
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.verification-result.valid {
+  background-color: #dff0d8;
+  color: #3c763d;
+}
+
+.verification-result.invalid {
+  background-color: #f2dede;
+  color: #a94442;
+}
