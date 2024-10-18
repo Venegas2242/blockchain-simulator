@@ -6,6 +6,12 @@ import binascii
 import traceback
 import re
 
+from Crypto.Cipher import AES
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Util.Padding import pad, unpad
+from Crypto.Random import get_random_bytes
+import base64
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 blockchain = Blockchain()
@@ -71,15 +77,39 @@ def full_chain():
 
 @app.route('/generate_keys', methods=['GET'])
 def generate_keys():
+    password = "1234"
     sk = SigningKey.generate(curve=SECP256k1)
     vk = sk.get_verifying_key()
     
     private_key = binascii.hexlify(sk.to_string()).decode('ascii')
+    encrypted = encrypt_private_key(private_key, password)
     public_key = binascii.hexlify(vk.to_string()).decode('ascii')
     
     blockchain.balances[public_key] = 10  # Dar 10 unidades de moneda inicial
     
-    return jsonify({'private_key': private_key, 'public_key': public_key}), 200
+    return jsonify({'private_key': private_key, 'public_key': public_key, 'encrypted_key': encrypted}), 200
+
+def encrypt_private_key(private_key, password):
+    # Generate a random salt
+    salt = get_random_bytes(16)
+
+    # Derive a 32-byte key from the password using PBKDF2
+    key = PBKDF2(password, salt, dkLen=32)
+
+    # Create an AES cipher object
+    cipher = AES.new(key, AES.MODE_CBC)
+
+    # Pad the private key
+    padded_data = pad(private_key.encode(), AES.block_size)
+
+    # Encrypt the padded data
+    encrypted_data = cipher.encrypt(padded_data)
+
+    # Combine salt, IV, and encrypted data
+    encrypted_private_key = salt + cipher.iv + encrypted_data
+
+    # Encode as base64 for easy storage/transmission
+    return base64.b64encode(encrypted_private_key).decode()
 
 @app.route('/balance', methods=['GET'])
 def get_balance():

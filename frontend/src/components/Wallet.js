@@ -30,6 +30,10 @@ const Wallet = ({ wallet, balance }) => {
         Private Key: {truncateKey(wallet.private_key)}
         <button onClick={() => copyToClipboard(wallet.private_key)}>Copy</button>
       </p>
+      <p>
+        Private Key (Encrypted): {truncateKey(wallet.encrypted_key)}
+        <button onClick={() => copyToClipboard(wallet.encrypted_key)}>Copy</button>
+      </p>
       <p>Balance: {balance}</p>
     </div>
   );
