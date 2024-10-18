@@ -5,7 +5,6 @@ import './Blockchain.css';
 const Blockchain = ({ chain }) => {
   return (
     <div className="blockchain-container">
-      <h2>Blockchain</h2>
       <div className="blockchain">
         {chain.map((block, index) => (
           <Block 

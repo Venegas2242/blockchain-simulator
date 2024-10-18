@@ -5,6 +5,7 @@ from ecdsa import SigningKey, SECP256k1
 import binascii
 import traceback
 import re
+import hashlib
 
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
@@ -18,6 +19,27 @@ blockchain = Blockchain()
 
 def clean_public_key(key):
     return re.sub(r'\s+', '', key)
+
+@app.route('/generate_wallet', methods=['GET'])
+def generate_wallet():
+    password = "1234"
+    sk = SigningKey.generate(curve=SECP256k1)
+    vk = sk.get_verifying_key()
+    
+    private_key = binascii.hexlify(sk.to_string()).decode('ascii')
+    encrypted = encrypt_private_key(private_key, password)
+    public_key = binascii.hexlify(vk.to_string()).decode('ascii')
+    
+    address = generate_address_from_public_key(public_key)
+    
+    blockchain.balances[public_key] = 10  # Dar 10 unidades de moneda inicial
+    
+    return jsonify({
+        'private_key': private_key,
+        'public_key': public_key,
+        'encrypted_key': encrypted,
+        'address': address
+    }), 200
 
 @app.route('/mine', methods=['POST'])
 def mine():
@@ -89,6 +111,23 @@ def generate_keys():
     
     return jsonify({'private_key': private_key, 'public_key': public_key, 'encrypted_key': encrypted}), 200
 
+@app.route('/generate_address', methods=['POST'])
+def generate_address():
+    values = request.get_json()
+    if not values or 'public_key' not in values:
+        return jsonify({'message': 'Missing public_key'}), 400
+
+    public_key = clean_public_key(values['public_key'])
+    address = generate_address_from_public_key(public_key)
+    
+    return jsonify({'address': address}), 200
+
+def generate_address_from_public_key(public_key):
+    public_key_bytes = bytes.fromhex(public_key)
+    sha256_hash = hashlib.sha256(public_key_bytes).digest()
+    ripemd160_hash = hashlib.new('ripemd160', sha256_hash).hexdigest()
+    return ripemd160_hash
+
 def encrypt_private_key(private_key, password):
     # Generate a random salt
     salt = get_random_bytes(16)
@@ -110,6 +149,44 @@ def encrypt_private_key(private_key, password):
 
     # Encode as base64 for easy storage/transmission
     return base64.b64encode(encrypted_private_key).decode()
+
+@app.route('/decrypt_private_key', methods=['POST'])
+def decrypt_private_key_route():
+    data = request.get_json()
+    encrypted_private_key = data.get('encrypted_private_key')
+    password = data.get('password')
+
+    if not encrypted_private_key or not password:
+        return jsonify({'error': 'Missing encrypted_private_key or password'}), 400
+
+    try:
+        decrypted_private_key = decrypt_private_key(encrypted_private_key, password)
+        return jsonify({'decrypted_private_key': decrypted_private_key}), 200
+    except Exception as e:
+        return jsonify({'error': 'Decryption failed. Incorrect password or invalid data.'}), 400
+
+def decrypt_private_key(encrypted_private_key, password):
+    # Decode the base64 encrypted data
+    encrypted_data = base64.b64decode(encrypted_private_key)
+
+    # Extract salt, IV, and ciphertext
+    salt = encrypted_data[:16]
+    iv = encrypted_data[16:32]
+    ciphertext = encrypted_data[32:]
+
+    # Derive the key from the password and salt
+    key = PBKDF2(password, salt, dkLen=32)
+
+    # Create an AES cipher object
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+
+    # Decrypt the data
+    decrypted_padded_data = cipher.decrypt(ciphertext)
+
+    # Unpad the decrypted data
+    decrypted_data = unpad(decrypted_padded_data, AES.block_size)
+
+    return decrypted_data.decode()
 
 @app.route('/balance', methods=['GET'])
 def get_balance():

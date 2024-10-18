@@ -4,16 +4,16 @@ import './Block.css'; // Asegúrate de que este archivo contiene los estilos act
 const Block = ({ block, isLast }) => {
   return (
     <div className="block">
-      <h3>Block {block.index}</h3>
-      <p>Nonce: {block.nonce}</p>
-      <p>Timestamp: {new Date(block.timestamp * 1000).toLocaleString()}</p>
+      <h3><strong>Block</strong> {block.index}</h3>
+      <p><strong>Nonce:</strong> {block.nonce}</p>
+      <p><strong>Timestamp:</strong> {new Date(block.timestamp * 1000).toLocaleString()}</p>
       <p className="hash">
         <strong>Previous Hash:</strong> {block.previous_hash}
       </p>
       <p className="hash">
         <strong>Current Hash:</strong> {block.hash}
       </p>
-      <p>Previous Hash Valid: {block.previous_hash_valid ? 'Yes' : 'No'}</p>
+      
       <h4>Transactions:</h4>
       <ul>
         {block.transactions.map((transaction, index) => (

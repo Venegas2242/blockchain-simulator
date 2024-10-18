@@ -69,7 +69,7 @@ function App() {
 
   const generateWallet = async () => {
     try {
-      const response = await fetch(`${API_URL}/generate_keys`);
+      const response = await fetch(`${API_URL}/generate_wallet`);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -79,8 +79,8 @@ function App() {
       fetchBalance(data.public_key);
       setError(null);
     } catch (error) {
-      console.error('Error generating keys:', error);
-      setError('Failed to generate wallet keys. Please try again.');
+      console.error('Error generating wallet:', error);
+      setError('Failed to generate wallet. Please try again.');
     }
   };
 
@@ -139,20 +139,20 @@ function App() {
   return (
     <div className="container">
       <header className="header">
-        <h1>Blockchain Simulator</h1>
+        <h1>Simulador Blockchain</h1>
       </header>
       <main className="main-content">
         {error && <div className="error">{error}</div>}
         <div className="tab-container">
-          <button className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} onClick={() => setActiveTab('wallet')}>Wallet</button>
-          <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transaction</button>
-          <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Mining</button>
+          <button className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} onClick={() => setActiveTab('wallet')}>Billetera</button>
+          <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transacción</button>
+          <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Minado</button>
           <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
         </div>
         
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
-          <h2>Your Wallet</h2>
           {wallet && <Wallet wallet={wallet} balance={balance} />}
+          {!wallet && <button onClick={generateWallet}>Generate Wallet</button>}
         </div>
         
         <div className={`tab-content ${activeTab === 'transaction' ? 'active' : ''}`}>
@@ -166,7 +166,6 @@ function App() {
         </div>
         
         <div className={`tab-content ${activeTab === 'blockchain' ? 'active' : ''}`}>
-          <h2>Blockchain</h2>
           <Blockchain chain={blockchain} />
         </div>
       </main>

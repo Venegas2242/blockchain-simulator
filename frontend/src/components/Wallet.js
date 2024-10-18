@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Wallet.css';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Wallet = ({ wallet, balance }) => {
+  const [showAddress, setShowAddress] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+
   const truncateKey = (key) => {
     if (key) {
       return key.substr(0, 32) + '...';
@@ -15,26 +21,69 @@ const Wallet = ({ wallet, balance }) => {
     });
   };
 
+  const handleAddressReveal = () => {
+    setShowAddress(true);
+  };
+
+  const handleDecryptPrivateKey = async () => {
+    try {
+      const response = await fetch(`${API_URL}/decrypt_private_key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          encrypted_private_key: wallet.encrypted_key,
+          password: password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Decryption failed');
+      }
+
+      const data = await response.json();
+      copyToClipboard(data.decrypted_private_key);
+      setShowPasswordInput(false);
+      setPassword('');
+    } catch (error) {
+      alert('Failed to decrypt private key. Please check your password and try again.');
+    }
+  };
+
   if (!wallet) {
     return <div>Loading wallet...</div>;
   }
 
   return (
     <div className="wallet">
-      <h2>Your Wallet</h2>
       <p>
-        Public Key: {truncateKey(wallet.public_key)}
-        <button onClick={() => copyToClipboard(wallet.public_key)}>Copy</button>
+      <strong>Dirección: </strong>
+        {showAddress ? (
+          <>
+            {truncateKey(wallet.address)}
+            <button onClick={() => copyToClipboard(wallet.address)}>Copiar</button>
+          </>
+        ) : (
+          <button onClick={handleAddressReveal}>Mostrar dirección</button>
+        )}
       </p>
       <p>
-        Private Key: {truncateKey(wallet.private_key)}
-        <button onClick={() => copyToClipboard(wallet.private_key)}>Copy</button>
+      <strong>Llave Privada (Cifrada):</strong> {truncateKey(wallet.encrypted_key)}
+        <button onClick={() => setShowPasswordInput(true)}>Decifrar y copiar</button>
       </p>
-      <p>
-        Private Key (Encrypted): {truncateKey(wallet.encrypted_key)}
-        <button onClick={() => copyToClipboard(wallet.encrypted_key)}>Copy</button>
-      </p>
-      <p>Balance: {balance}</p>
+      {showPasswordInput && (
+        <div>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password (1234)"
+          />
+          <button onClick={handleDecryptPrivateKey}>Submit</button>
+        </div>
+      )}
+      <p><strong>Saldo:</strong> {balance} BBC</p>
     </div>
   );
 };
