@@ -10,6 +10,8 @@ Este proyecto es un simulador de blockchain que incluye un backend en Python y u
 - Minería de bloques con recompensa
 - Visualización interactiva de la cadena de bloques
 - Verificación de integridad de bloques (hash previo y prueba de trabajo)
+- Encriptación y desencriptación de claves privadas
+- Firma digital de transacciones
 
 ## Requisitos previos
 
@@ -88,12 +90,22 @@ blockchain-simulator/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Block.js
+│   │   │   ├── Block.css
 │   │   │   ├── Blockchain.js
+│   │   │   ├── Blockchain.css
 │   │   │   ├── Transaction.js
-│   │   │   └── Wallet.js
+│   │   │   ├── Wallet.js
+│   │   │   └── Wallet.css
 │   │   ├── App.js
+│   │   ├── App.css
 │   │   └── index.js
-│   ├── package.json
-│   └── .env
+│   └── package.json
 └── README.md
 ```
+
+## Funcionalidades principales
+
+- **Wallet**: Genera y muestra información de la billetera, incluyendo dirección y clave privada encriptada.
+- **Transacción**: Permite realizar transacciones entre direcciones.
+- **Minería**: Permite minar nuevos bloques y recibir recompensas.
+- **Blockchain**: Visualiza la cadena de bloques completa con detalles de cada bloque y transacción.

@@ -209,15 +209,16 @@ def sign_transaction(private_key, transaction):
     transaction_string = json.dumps(transaction, sort_keys=True)
     return sk.sign(transaction_string.encode())
 
-def verify_signature(public_key, transaction, signature):
-    """Verifica la firma de una transacción usando la clave pública."""
-    vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
-    transaction_string = json.dumps(transaction, sort_keys=True)
-    try:
-        vk.verify(signature, transaction_string.encode())
-        return True
-    except:
-        return False
+#! USAR O ADAPTAR PARA VERIFICAR BLOQUES
+# def verify_signature(public_key, transaction, signature):
+#     """Verifica la firma de una transacción usando la clave pública."""
+#     vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
+#     transaction_string = json.dumps(transaction, sort_keys=True)
+#     try:
+#         vk.verify(signature, transaction_string.encode())
+#         return True
+#     except:
+#         return False
     
 @app.route('/balance', methods=['GET'])
 def get_balance():
