@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 function Transaction({ onNewTransaction, address }) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
+  const [privateKey, setPrivateKey] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -10,10 +11,11 @@ function Transaction({ onNewTransaction, address }) {
       sender: address,
       recipient,
       amount: parseFloat(amount),
-      signature: 'dummy_signature', // En una app real, firmarías la transacción aquí
+      privateKey
     });
     setRecipient('');
     setAmount('');
+    setPrivateKey('');
   };
 
   return (
@@ -37,6 +39,16 @@ function Transaction({ onNewTransaction, address }) {
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="privateKey">Llave privada:</label>
+          <input
+            id="privateKey"
+            type="text"
+            value={privateKey}
+            onChange={(e) => setPrivateKey(e.target.value)}
             required
           />
         </div>

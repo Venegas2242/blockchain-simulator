@@ -1,5 +1,5 @@
 import React from 'react';
-import './Block.css'; // Asegúrate de que este archivo contiene los estilos actualizados
+import './Block.css';
 
 const Block = ({ block, isLast }) => {
   return (
@@ -26,6 +26,9 @@ const Block = ({ block, isLast }) => {
             </div>
             <div>
               <strong>Amount:</strong> {transaction.amount}
+            </div>
+            <div className="signature">
+              <strong>Signature:</strong> {transaction.signature}
             </div>
           </li>
         ))}

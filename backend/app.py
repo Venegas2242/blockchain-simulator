@@ -1,11 +1,12 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from blockchain import Blockchain
-from ecdsa import SigningKey, SECP256k1
+from ecdsa import SigningKey, VerifyingKey, SECP256k1
 import binascii
 import traceback
 import re
 import hashlib
+import json
 
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
@@ -67,16 +68,30 @@ def mine():
 def new_transaction():
     try:
         values = request.get_json()
-        required = ['sender', 'recipient', 'amount', 'signature']
+        required = ['sender', 'recipient', 'amount', 'privateKey']
         if not all(k in values for k in required):
             return jsonify({'message': 'Missing values'}), 400
 
         sender = clean_public_key(values['sender'])
         recipient = clean_public_key(values['recipient'])
         amount = float(values['amount'])
+        private_key = values['privateKey']
+
+        # Crear la transacción
+        transaction = {
+            'sender': sender,
+            'recipient': recipient,
+            'amount': amount
+        }
+
+        # Firmar la transacción
+        signature = sign_transaction(private_key, transaction)
+
+        # Agregar la firma a la transacción
+        transaction['signature'] = signature.hex()
 
         # Crear la transacción y minar el bloque inmediatamente
-        block = blockchain.new_transaction_and_mine(sender, recipient, amount, values['signature'])
+        block = blockchain.new_transaction_and_mine(sender, recipient, amount, transaction['signature'])
         
         response = {
             'message': f'Transaction processed and added to Block {block["index"]}'
@@ -188,6 +203,22 @@ def decrypt_private_key(encrypted_private_key, password):
 
     return decrypted_data.decode()
 
+def sign_transaction(private_key, transaction):
+    """Firma una transacción usando la clave privada."""
+    sk = SigningKey.from_string(bytes.fromhex(private_key), curve=SECP256k1)
+    transaction_string = json.dumps(transaction, sort_keys=True)
+    return sk.sign(transaction_string.encode())
+
+def verify_signature(public_key, transaction, signature):
+    """Verifica la firma de una transacción usando la clave pública."""
+    vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
+    transaction_string = json.dumps(transaction, sort_keys=True)
+    try:
+        vk.verify(signature, transaction_string.encode())
+        return True
+    except:
+        return False
+    
 @app.route('/balance', methods=['GET'])
 def get_balance():
     address = request.args.get('address')

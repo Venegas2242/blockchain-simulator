@@ -102,8 +102,8 @@ function App() {
       console.log('Transaction created:', data);
       
       await fetchBlockchain();
-      if (wallet?.public_key) {
-        await fetchBalance(wallet.public_key);
+      if (wallet?.address) {
+        await fetchBalance(wallet.address);
       }
     } catch (error) {
       console.error('Error creating transaction:', error);
