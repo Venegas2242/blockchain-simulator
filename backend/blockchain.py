@@ -77,8 +77,7 @@ class Blockchain:
         self.current_transactions.append({
             'sender': "0",
             'recipient': miner_address,
-            'amount': 1,
-            'signature': None
+            'amount': 1
         })
         
         previous_hash = self.last_block['hash']

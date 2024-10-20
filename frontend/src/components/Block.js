@@ -2,6 +2,8 @@ import React from 'react';
 import './Block.css';
 
 const Block = ({ block, isLast }) => {
+  const isGenesisBlock = block.index === 1;
+
   return (
     <div className="block">
       <h3><strong>Block</strong> {block.index}</h3>
@@ -14,25 +16,33 @@ const Block = ({ block, isLast }) => {
         <strong>Current Hash:</strong> {block.hash}
       </p>
       
-      <h4>Transactions:</h4>
-      <ul>
-        {block.transactions.map((transaction, index) => (
-          <li key={index}>
-            <div className="address">
-              <strong>From:</strong> {transaction.sender}
-            </div>
-            <div className="address">
-              <strong>To:</strong> {transaction.recipient}
-            </div>
-            <div>
-              <strong>Amount:</strong> {transaction.amount}
-            </div>
-            <div className="signature">
-              <strong>Signature:</strong> {transaction.signature}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {isGenesisBlock ? (
+        <h4>Bloque Génesis</h4>
+      ) : (
+        <>
+          <h4>Transactions:</h4>
+          <ul>
+            {block.transactions.map((transaction, index) => (
+              <li key={index}>
+                <div className="address">
+                  <strong>From:</strong> {transaction.sender}
+                </div>
+                <div className="address">
+                  <strong>To:</strong> {transaction.recipient}
+                </div>
+                <div>
+                  <strong>Amount:</strong> {transaction.amount}
+                </div>
+                {transaction.signature && (
+                  <div className="signature">
+                    <strong>Signature:</strong> {transaction.signature}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {!isLast && <div className="arrow">→</div>}
     </div>
   );
