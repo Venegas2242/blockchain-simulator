@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 
-function Transaction({ onNewTransaction, publicKey }) {
+function Transaction({ onNewTransaction, address }) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onNewTransaction({
-      sender: publicKey,
+      sender: address,
       recipient,
       amount: parseFloat(amount),
       signature: 'dummy_signature', // En una app real, firmarías la transacción aquí
@@ -18,10 +18,9 @@ function Transaction({ onNewTransaction, publicKey }) {
 
   return (
     <div>
-      <h2>New Transaction</h2>
       <form onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="recipient">Recipient's public key:</label>
+          <label htmlFor="recipient">Dirección receptor:</label>
           <input
             id="recipient"
             type="text"
@@ -31,7 +30,7 @@ function Transaction({ onNewTransaction, publicKey }) {
           />
         </div>
         <div>
-          <label htmlFor="amount">Amount:</label>
+          <label htmlFor="amount">Cantidad:</label>
           <input
             id="amount"
             type="number"
@@ -41,7 +40,7 @@ function Transaction({ onNewTransaction, publicKey }) {
             required
           />
         </div>
-        <button type="submit">Send Transaction</button>
+        <button type="submit">Enviar</button>
       </form>
     </div>
   );

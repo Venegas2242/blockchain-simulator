@@ -49,7 +49,7 @@ function App() {
     if (storedWallet) {
       const parsedWallet = JSON.parse(storedWallet);
       setWallet(parsedWallet);
-      fetchBalance(parsedWallet.public_key);
+      fetchBalance(parsedWallet.address);
     } else {
       generateWallet();
     }
@@ -58,8 +58,8 @@ function App() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (wallet?.public_key) {
-        fetchBalance(wallet.public_key);
+      if (wallet?.address) {
+        fetchBalance(wallet.address);
       }
       fetchBlockchain();
     }, 10000);
@@ -76,7 +76,7 @@ function App() {
       const data = await response.json();
       setWallet(data);
       localStorage.setItem('wallet', JSON.stringify(data));
-      fetchBalance(data.public_key);
+      fetchBalance(data.address);
       setError(null);
     } catch (error) {
       console.error('Error generating wallet:', error);
@@ -85,6 +85,7 @@ function App() {
   };
 
   const handleNewTransaction = async (transaction) => {
+    console.log("Transacción a realizar: ", transaction)
     try {
       const response = await fetch(`${API_URL}/transactions/new`, {
         method: 'POST',
@@ -117,7 +118,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ miner_address: wallet?.public_key }),
+        body: JSON.stringify({ miner_address: wallet?.address }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -127,8 +128,8 @@ function App() {
       console.log('Mined block:', data);
       
       await fetchBlockchain();
-      if (wallet?.public_key) {
-        await fetchBalance(wallet.public_key);
+      if (wallet?.address) {
+        await fetchBalance(wallet.address);
       }
     } catch (error) {
       console.error('Error mining:', error);
@@ -146,7 +147,7 @@ function App() {
         <div className="tab-container">
           <button className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} onClick={() => setActiveTab('wallet')}>Billetera</button>
           <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transacción</button>
-          <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Minado</button>
+          <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Minar</button>
           <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
         </div>
         
@@ -156,13 +157,11 @@ function App() {
         </div>
         
         <div className={`tab-content ${activeTab === 'transaction' ? 'active' : ''}`}>
-          <h2>New Transaction</h2>
-          <Transaction onNewTransaction={handleNewTransaction} publicKey={wallet?.public_key} />
+          <Transaction onNewTransaction={handleNewTransaction} address={wallet?.address} />
         </div>
         
         <div className={`tab-content ${activeTab === 'mining' ? 'active' : ''}`}>
-          <h2>Mining</h2>
-          <button onClick={handleMine}>Mine a Block</button>
+          <button onClick={handleMine}>Minar un bloque</button>
         </div>
         
         <div className={`tab-content ${activeTab === 'blockchain' ? 'active' : ''}`}>

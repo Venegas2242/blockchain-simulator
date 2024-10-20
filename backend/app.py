@@ -107,7 +107,7 @@ def generate_keys():
     encrypted = encrypt_private_key(private_key, password)
     public_key = binascii.hexlify(vk.to_string()).decode('ascii')
     
-    blockchain.balances[public_key] = 10  # Dar 10 unidades de moneda inicial
+    blockchain.balances[address] = 10  # Dar 10 unidades de moneda inicial
     
     return jsonify({'private_key': private_key, 'public_key': public_key, 'encrypted_key': encrypted}), 200
 

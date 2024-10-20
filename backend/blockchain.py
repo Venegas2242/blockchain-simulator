@@ -38,6 +38,7 @@ class Blockchain:
 
     def new_transaction_and_mine(self, sender, recipient, amount, signature):
         if self.get_balance(sender) < amount:
+            balance = self.get_balance(sender)
             raise ValueError("Insufficient funds")
 
         self.current_transactions.append({
