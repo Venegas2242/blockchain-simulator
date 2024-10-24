@@ -3,6 +3,7 @@ import './App.css';
 import Wallet from './components/Wallet';
 import Transaction from './components/Transaction';
 import Blockchain from './components/Blockchain';
+import VerifyBlock from './components/VerifyBlock'; // Verificacion
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -12,6 +13,7 @@ function App() {
   const [blockchain, setBlockchain] = useState([]);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('wallet');
+  const [verifyResult, setVerifyResult] = useState(null); // Estado para almacenar el resultado de la verificación
 
   const fetchBalance = useCallback(async (address) => {
     if (!address) return;
@@ -88,7 +90,7 @@ function App() {
     console.log("Transacción a realizar: ", transaction)
     try {
       const response = await fetch(`${API_URL}/transactions/new`, {
-        method: 'POST',
+        method: 'POST',  
         headers: {
           'Content-Type': 'application/json',
         },
@@ -137,6 +139,29 @@ function App() {
     }
   };
 
+  const handleVerifyBlock = async (blockIndex) => {
+    setVerifyResult(null);
+    try {
+      const response = await fetch(`${API_URL}/verify_block`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ block_index: blockIndex }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to verify block');
+      }
+      const data = await response.json();
+      setVerifyResult(`Block ${blockIndex} is valid`);
+      console.log('Verify result:', data);
+    } catch (error) {
+      console.error('Error verifying block:', error);
+      setVerifyResult(`Failed to verify block: ${error.message}`);
+    }
+  };
+
   return (
     <div className="container">
       <header className="header">
@@ -149,6 +174,7 @@ function App() {
           <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transacción</button>
           <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Minar</button>
           <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
+          <button className={`tab ${activeTab === 'verify' ? 'active' : ''}`} onClick={() => setActiveTab('verify')}>Verificar</button>
         </div>
         
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
@@ -166,6 +192,10 @@ function App() {
         
         <div className={`tab-content ${activeTab === 'blockchain' ? 'active' : ''}`}>
           <Blockchain chain={blockchain} />
+        </div>
+
+        <div className={`tab-content ${activeTab === 'verify' ? 'active' : ''}`}>
+        <VerifyBlock onVerifyResult={handleVerifyBlock} />
         </div>
       </main>
     </div>

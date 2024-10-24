@@ -1,6 +1,16 @@
 import hashlib
 import json
 from time import time
+from ecdsa import SigningKey, VerifyingKey, SECP256k1
+
+def verify_signature(public_key, transaction, signature):
+    vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
+    transaction_string = json.dumps(transaction, sort_keys=True)
+    try:
+        vk.verify(bytes.fromhex(signature), transaction_string.encode())
+        return True
+    except:
+        return False
 
 class Blockchain:
     def __init__(self):
@@ -8,6 +18,7 @@ class Blockchain:
         self.current_transactions = []
         self.nodes = set()
         self.balances = {}
+        self.public_keys = {}
         self.last_block_hash = '1'
         self.new_block(previous_hash=self.last_block_hash)  # GENESIS
 
@@ -23,6 +34,9 @@ class Blockchain:
         
         block['nonce'], block['hash'] = self.calculate_hash(block)
         self.last_block_hash = block['hash']
+
+        if not self.verify_block(block):  # Nuevo Verificar el bloque antes de permitir la transaccion
+            raise ValueError("Block contains invalid transactions")
         
         for transaction in self.current_transactions:
             sender = transaction['sender']
@@ -50,6 +64,29 @@ class Blockchain:
 
         previous_hash = self.last_block['hash']
         return self.new_block(previous_hash)
+    
+    # Nuevo Verificacion por bloque 
+    def verify_block(self, block):
+        for transaction in block['transactions']:
+            sender = transaction['sender']
+            
+            # Si el remitente es "0", es una transacción de recompensa y no requiere verificación de firma
+            if sender == "0":
+                return True
+
+            signature = transaction['signature']
+
+
+            public_key = self.public_keys.get(sender)
+            if not public_key:
+                return False  
+
+            transaction_copy = transaction.copy()
+            transaction_copy.pop('signature')
+            if not verify_signature(public_key, transaction_copy, signature):
+                return False
+            
+        return True
 
     @property
     def last_block(self):
@@ -70,6 +107,7 @@ class Blockchain:
             nonce += 1
 
     def get_balance(self, address):
+        print(f"Retrieving balance for {address}")  
         return self.balances.get(address, 0)
 
     # Mantenemos el método mine separado para cuando se quiera minar sin transacción
@@ -82,3 +120,12 @@ class Blockchain:
         
         previous_hash = self.last_block['hash']
         return self.new_block(previous_hash)
+    
+    # Nuevo para verficar la cadena completa
+    def validate_chain(self):
+        for block in self.chain:
+            if not self.verify_block(block):
+                return False
+        return True
+    
+

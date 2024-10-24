@@ -14,9 +14,12 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 import base64
 
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 blockchain = Blockchain()
+
+blockchain.public_keys = {}
 
 def clean_public_key(key):
     return re.sub(r'\s+', '', key)
@@ -32,9 +35,12 @@ def generate_wallet():
     public_key = binascii.hexlify(vk.to_string()).decode('ascii')
     
     address = generate_address_from_public_key(public_key)
-    
-    blockchain.balances[public_key] = 10  # Dar 10 unidades de moneda inicial
-    
+
+    # Store the public key with the address
+    blockchain.public_keys[address] = public_key
+    blockchain.balances[address] = 10  # Dar 10 unidades de moneda inicial
+    print(f"Setting balance for {address}: {blockchain.balances[address]}")
+
     return jsonify({
         'private_key': private_key,
         'public_key': public_key,
@@ -106,26 +112,15 @@ def new_transaction():
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
+    if not blockchain.validate_chain():                                  # Nuevo Ver
+        return jsonify({'message': 'The blockchain is invalid'}), 400    # Nuevo Ver
     response = {
         'chain': blockchain.chain,
         'length': len(blockchain.chain),
     }
     return jsonify(response), 200
 
-@app.route('/generate_keys', methods=['GET'])
-def generate_keys():
-    password = "1234"
-    sk = SigningKey.generate(curve=SECP256k1)
-    vk = sk.get_verifying_key()
     
-    private_key = binascii.hexlify(sk.to_string()).decode('ascii')
-    encrypted = encrypt_private_key(private_key, password)
-    public_key = binascii.hexlify(vk.to_string()).decode('ascii')
-    
-    blockchain.balances[address] = 10  # Dar 10 unidades de moneda inicial
-    
-    return jsonify({'private_key': private_key, 'public_key': public_key, 'encrypted_key': encrypted}), 200
-
 @app.route('/generate_address', methods=['POST'])
 def generate_address():
     values = request.get_json()
@@ -204,11 +199,18 @@ def decrypt_private_key(encrypted_private_key, password):
     return decrypted_data.decode()
 
 def sign_transaction(private_key, transaction):
-    """Firma una transacción usando la clave privada."""
-    sk = SigningKey.from_string(bytes.fromhex(private_key), curve=SECP256k1)
-    transaction_string = json.dumps(transaction, sort_keys=True)
-    return sk.sign(transaction_string.encode())
-
+    try:
+        # Crear la clave de firma a partir de la clave privada
+        sk = SigningKey.from_string(bytes.fromhex(private_key), curve=SECP256k1)
+        transaction_string = json.dumps(transaction, sort_keys=True)
+        
+        # Generar la firma
+        signature = sk.sign(transaction_string.encode())
+        return signature
+    except Exception as e:
+        print(f"Error al firmar la transacción: {str(e)}")
+        raise
+    
 #! USAR O ADAPTAR PARA VERIFICAR BLOQUES
 # def verify_signature(public_key, transaction, signature):
 #     """Verifica la firma de una transacción usando la clave pública."""
@@ -219,14 +221,64 @@ def sign_transaction(private_key, transaction):
 #         return True
 #     except:
 #         return False
-    
+
+# Verificacion
+@app.route('/verify_block', methods=['POST'])
+def verify_block():
+    data = request.get_json()
+    block_index = data.get('block_index')
+    if block_index is None or not (0 <= block_index < len(blockchain.chain)):
+        return jsonify({'message': 'Invalid block index'}), 400
+
+    block = blockchain.chain[block_index]
+    if verify_block_transactions(block):
+        return jsonify({'message': f'Block {block_index} is valid'}), 200
+    else:
+        return jsonify({'message': f'Block {block_index} contains invalid transactions'}), 400
+
+def verify_block_transactions(block):
+    for transaction in block['transactions']:
+        sender = transaction['sender']
+
+        if sender == "0": # Si es minado
+            return True
+        
+        signature = transaction['signature']
+
+        # Obtenemos clave publica
+        public_key = blockchain.public_keys.get(sender)
+        if not public_key:
+            return False  
+        
+        # Crear una copia de la transacción sin la firma para verificarla
+        transaction_copy = transaction.copy()
+        transaction_copy.pop('signature')
+        
+        # Verificar la firma
+        if not verify_signature(public_key, transaction_copy, signature):
+            return False  
+    return True
+
+
 @app.route('/balance', methods=['GET'])
 def get_balance():
     address = request.args.get('address')
     if not address:
         return jsonify({'message': 'Missing address parameter'}), 400
+    
+    print(f"Retrieving balance for {address}")
     balance = blockchain.get_balance(clean_public_key(address))
     return jsonify({'balance': balance}), 200
+
+def verify_signature(public_key, transaction, signature):
+    # Verifica la firma de una transacción usando la clave pública.
+    vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
+    transaction_string = json.dumps(transaction, sort_keys=True)
+    try:
+        vk.verify(bytes.fromhex(signature), transaction_string.encode())
+        return True
+    except:
+        return False
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

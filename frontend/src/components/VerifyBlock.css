@@ -1,0 +1,49 @@
+/* src/components/VerifyBlock.css */
+.verify-block {
+    background-color: #e8f5e9; /* Fondo verde claro */
+    border: 2px solid #4CAF50; /* Borde verde */
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .verify-block h2 {
+    color: #2E7D32; /* Color de texto verde oscuro */
+    margin-top: 0;
+  }
+  
+  .verify-block p {
+    margin: 10px 0;
+  }
+  
+  .verify-block input {
+    width: calc(100% - 130px);
+    padding: 5px;
+    margin-right: 10px;
+    border: 1px solid #4CAF50;
+    border-radius: 5px;
+  }
+  
+  .verify-block button {
+    padding: 5px 10px;
+    background-color: #4CAF50; /* Fondo verde */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .verify-block button:hover {
+    background-color: #45a049; /* Verde más oscuro al pasar el mouse */
+  }
+  
+  .verification-result {
+    color: #2E7D32; /* Verde para el resultado */
+    font-weight: bold;
+    margin-top: 10px;
+  }
+  
+  .verification-result.error {
+    color: #D32F2F; /* Rojo para el resultado de error */
+  }
+  
