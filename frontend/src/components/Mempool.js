@@ -7,6 +7,7 @@ const Mempool = ({ onRefresh, wallet, onError }) => {
   const [mempool, setMempool] = useState([]);
   const [blockReward, setBlockReward] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [selectedTransactions, setSelectedTransactions] = useState([]);
 
   const fetchMempool = async () => {
     try {
@@ -28,9 +29,25 @@ const Mempool = ({ onRefresh, wallet, onError }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleMine = async (transaction) => {
+  const handleTransactionSelect = (index) => {
+    setSelectedTransactions(prev => {
+      if (prev.includes(index)) {
+        return prev.filter(i => i !== index);
+      } else if (prev.length < 3) {
+        return [...prev, index];
+      }
+      return prev;
+    });
+  };
+
+  const handleMine = async () => {
     if (!wallet?.address) {
       onError('Necesitas una billetera para minar');
+      return;
+    }
+
+    if (selectedTransactions.length === 0) {
+      onError('Selecciona al menos una transacción para minar');
       return;
     }
 
@@ -42,7 +59,8 @@ const Mempool = ({ onRefresh, wallet, onError }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          miner_address: wallet.address 
+          miner_address: wallet.address,
+          selected_transactions: selectedTransactions
         }),
       });
 
@@ -51,8 +69,9 @@ const Mempool = ({ onRefresh, wallet, onError }) => {
         throw new Error(errorData.message || 'Failed to mine block');
       }
 
+      setSelectedTransactions([]);
       await fetchMempool();
-      onRefresh(); // Para actualizar la blockchain y balances
+      onRefresh();
     } catch (error) {
       console.error('Error mining:', error);
       onError(`Error al minar: ${error.message}`);
@@ -61,30 +80,50 @@ const Mempool = ({ onRefresh, wallet, onError }) => {
     }
   };
 
+  // Calcular la recompensa total (block reward + fees de transacciones seleccionadas)
+  const calculateTotalReward = () => {
+    const selectedFees = selectedTransactions.reduce((total, index) => {
+      return total + (mempool[index]?.fee || 0);
+    }, 0);
+    return blockReward + selectedFees;
+  };
+
   return (
     <div className="mempool-container">
       <h2>Transacciones Pendientes</h2>
       <div className="block-reward">
         <h3>Recompensa actual por bloque: {blockReward} BBC</h3>
+        {selectedTransactions.length > 0 && (
+          <h4>Recompensa total esperada: {calculateTotalReward()} BBC</h4>
+        )}
+      </div>
+      <div>
+        <p>Transacciones seleccionadas: {selectedTransactions.length}/3</p>
+        {selectedTransactions.length > 0 && (
+          <button
+            onClick={handleMine}
+            disabled={loading || !wallet?.address}
+            className="mine-button"
+          >
+            {loading ? 'Minando...' : 'Minar transacciones seleccionadas'}
+          </button>
+        )}
       </div>
       {mempool.length === 0 ? (
         <p>No hay transacciones pendientes</p>
       ) : (
         <div className="transactions-list">
           {mempool.map((tx, index) => (
-            <div key={index} className="transaction-item">
+            <div 
+              key={index} 
+              className={`transaction-item ${selectedTransactions.includes(index) ? 'selected' : ''}`}
+              onClick={() => handleTransactionSelect(index)}
+            >
               <div><strong>De:</strong> {tx.sender}</div>
               <div><strong>Para:</strong> {tx.recipient}</div>
               <div><strong>Cantidad:</strong> {tx.amount} BBC</div>
               <div><strong>Comisión:</strong> {tx.fee} BBC</div>
-              <div><strong>Ganancia potencial:</strong> {tx.fee + blockReward} BBC</div>
-              <button
-                onClick={() => handleMine(tx)}
-                disabled={loading || !wallet?.address}
-                className="mine-button"
-              >
-                {loading ? 'Minando...' : 'Minar esta transacción'}
-              </button>
+              <div><strong>Estado:</strong> {selectedTransactions.includes(index) ? 'Seleccionada' : 'No seleccionada'}</div>
             </div>
           ))}
         </div>

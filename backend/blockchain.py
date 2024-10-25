@@ -172,36 +172,53 @@ class Blockchain:
         halvings = (len(self.chain) - 1) // self.halving_blocks
         return self.block_reward / (2 ** halvings)
 
-    def mine(self, miner_address):
+    def mine(self, miner_address, selected_transactions=None):
         """
-        Mina un nuevo bloque siguiendo el modelo de Bitcoin
+        Mina un nuevo bloque con las transacciones seleccionadas
+        
+        Args:
+            miner_address (str): Dirección del minero
+            selected_transactions (list): Lista de índices de las transacciones seleccionadas de la mempool
         """
-        # Seleccionar transacciones de la mempool (en Bitcoin serían muchas, aquí solo una para simplicidad)
-        selected_transaction = None
+        # Inicializar variables
+        transactions = []
         total_fees = 0
         
-        if self.mempool:
-            # Seleccionar la transacción con mayor comisión
-            selected_transaction = max(self.mempool, key=lambda x: x['fee'])
-            self.mempool.remove(selected_transaction)
-            total_fees = selected_transaction['fee']
+        # Si se proporcionaron transacciones seleccionadas, procesarlas
+        if selected_transactions and self.mempool:
+            # Limitar a 3 transacciones máximo
+            selected_transactions = selected_transactions[:3]
+            
+            # Obtener las transacciones seleccionadas y calcular fees
+            temp_mempool = self.mempool.copy()
+            selected_txs = []
+            
+            for tx_index in selected_transactions:
+                if 0 <= tx_index < len(temp_mempool):
+                    tx = temp_mempool[tx_index]
+                    selected_txs.append(tx)
+                    total_fees += tx['fee']
+            
+            # Remover las transacciones seleccionadas de la mempool
+            for tx in selected_txs:
+                self.mempool.remove(tx)
+            
+            transactions.extend(selected_txs)
 
         # Calcular recompensa total (recompensa de bloque + comisiones)
         block_reward = self.calculate_block_reward()
         total_reward = block_reward + total_fees
 
-        # Crear transacción coinbase (similar a Bitcoin)
+        # Crear transacción coinbase
         coinbase_transaction = {
-            'sender': "0",           # En Bitcoin esto sería null
+            'sender': "0",
             'recipient': miner_address,
-            'amount': total_reward,  # Recompensa total: block_reward + fees
-            'type': 'coinbase'       # Identificador especial para transacción coinbase
+            'amount': total_reward,
+            'type': 'coinbase'
         }
 
-        # Crear lista de transacciones (coinbase siempre es la primera)
-        transactions = [coinbase_transaction]
-        if selected_transaction:
-            transactions.append(selected_transaction)
+        # Coinbase siempre es la primera transacción
+        transactions.insert(0, coinbase_transaction)
 
         # Crear y minar el bloque
         previous_hash = self.last_block['hash']
@@ -210,7 +227,7 @@ class Blockchain:
             'timestamp': time(),
             'transactions': transactions,
             'previous_hash': previous_hash,
-            'merkle_root': self.calculate_merkle_root(transactions),  # Añadido como en Bitcoin
+            'merkle_root': self.calculate_merkle_root(transactions),
             'nonce': None,
             'hash': None
         }

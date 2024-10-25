@@ -57,11 +57,13 @@ def mine():
     try:
         values = request.get_json()
         miner_address = clean_public_key(values.get('miner_address'))
+        selected_transactions = values.get('selected_transactions', [])
+        
         if not miner_address:
             return jsonify({'message': 'Missing miner address'}), 400
 
         print(f"Iniciando minado para dirección: {miner_address}")
-        block = blockchain.mine(miner_address)
+        block = blockchain.mine(miner_address, selected_transactions)
         
         print("Verificando validez de la cadena después del minado...")
         if not blockchain.validate_chain():
