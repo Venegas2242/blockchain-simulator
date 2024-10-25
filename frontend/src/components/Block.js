@@ -4,46 +4,75 @@ import './Block.css';
 const Block = ({ block, isLast }) => {
   const isGenesisBlock = block.index === 1;
 
+  const renderTransaction = (transaction, index) => {
+    const isCoinbase = transaction.sender === "0" || transaction.type === 'coinbase';
+
+    return (
+      <div 
+        key={index} 
+        className={`transaction ${isCoinbase ? 'transaction-coinbase' : 'transaction-regular'}`}
+      >
+        <div className="transaction-header">
+          {isCoinbase ? '💰 Transacción Coinbase (Recompensa de Minado)' : `📝 Transacción #${index}`}
+        </div>
+        
+        <div className="transaction-data">
+          <strong>De:</strong> {transaction.sender}
+        </div>
+        
+        <div className="transaction-data">
+          <strong>Para:</strong> {transaction.recipient}
+        </div>
+        
+        <div className="transaction-data">
+          <strong>Cantidad:</strong> <span className="transaction-amount">{transaction.amount} BBC</span>
+          {!isCoinbase && transaction.fee && (
+            <span className="transaction-amount"> + {transaction.fee} BBC (comisión)</span>
+          )}
+        </div>
+
+        {transaction.timestamp && (
+          <div className="transaction-data">
+            <strong>Timestamp:</strong> {new Date(transaction.timestamp * 1000).toLocaleString()}
+          </div>
+        )}
+
+        {transaction.signature && (
+          <div className="transaction-data">
+            <strong>Firma:</strong> {transaction.signature}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="block">
-      <h3><strong>Block</strong> {block.index}</h3>
-      <p><strong>Nonce:</strong> {block.nonce}</p>
-      <p><strong>Timestamp:</strong> {new Date(block.timestamp * 1000).toLocaleString()}</p>
-      <p className="hash">
-        <strong>Previous Hash:</strong> {block.previous_hash}
-      </p>
-      <p className="hash">
-        <strong>Current Hash:</strong> {block.hash}
-      </p>
+    <div className={`block ${isGenesisBlock ? 'genesis' : ''}`}>
+      <h3>
+        {isGenesisBlock ? '🌟 Bloque Génesis' : `⛓️ Bloque ${block.index}`}
+      </h3>
       
-      {isGenesisBlock ? (
-        <h4>Bloque Génesis</h4>
-      ) : (
-        <>
-          <h4>Transactions:</h4>
-          <ul>
-            {block.transactions.map((transaction, index) => (
-              <li key={index}>
-                <div className="address">
-                  <strong>From:</strong> {transaction.sender}
-                </div>
-                <div className="address">
-                  <strong>To:</strong> {transaction.recipient}
-                </div>
-                <div>
-                  <strong>Amount:</strong> {transaction.amount}
-                </div>
-                {transaction.signature && (
-                  <div className="signature">
-                    <strong>Signature:</strong> {transaction.signature}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {!isLast && <div className="arrow">→</div>}
+      <div className="block-info">
+        <p><strong>🎲 Nonce:</strong> {block.nonce}</p>
+        <p><strong>🕒 Timestamp:</strong> {new Date(block.timestamp * 1000).toLocaleString()}</p>
+        <p><strong>↩️ Hash Anterior:</strong> {block.previous_hash}</p>
+        <p><strong>🔐 Hash Actual:</strong> {block.hash}</p>
+      </div>
+
+      <div>
+        <h4>📋 Transacciones</h4>
+        {block.transactions.length === 0 ? (
+          <p className="no-transactions">No hay transacciones en este bloque</p>
+        ) : (
+          <div className="transactions-list">
+            {block.transactions.map((transaction, index) => 
+              renderTransaction(transaction, index)
+            )}
+          </div>
+        )}
+      </div>
+
+      {!isLast && <div className="arrow">➡️</div>}
     </div>
   );
 };

@@ -1,62 +1,169 @@
 .blockchain-container {
   margin-top: 20px;
   overflow-x: auto;
-  padding-bottom: 20px; /* Espacio para el scrollbar */
+  padding-bottom: 20px;
 }
 
 .blockchain {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 20px; /* Espacio entre bloques */
+  gap: 20px;
   padding: 20px 0;
 }
 
 .block {
-  flex: 0 0 auto; /* Evita que los bloques se encojan */
-  min-width: 300px; /* Ancho mínimo para cada bloque */
-  max-width: 600px; /* Ancho máximo para evitar bloques extremadamente anchos */
-  width: auto; /* Permite que el bloque se expanda según el contenido */
-  border: 2px solid #4CAF50;
+  flex: 0 0 auto;
+  min-width: 350px;
+  max-width: none;
+  border: 2px solid #2196F3;  /* Azul material */
   border-radius: 10px;
   padding: 15px;
-  background-color: #f1f8e9;
+  background-color: #fff;
   position: relative;
-  word-wrap: break-word; /* Permite que las palabras largas se rompan */
+  box-shadow: 0 2px 5px rgba(33, 150, 243, 0.2);  /* Sombra azul suave */
 }
 
 .block h3 {
-  margin-top: 0;
-  color: #2E7D32;
+  margin: -15px -15px 15px -15px;
+  padding: 10px 15px;
+  background-color: #2196F3;  /* Azul material */
+  color: white;
+  border-radius: 8px 8px 0 0;
 }
 
-.block p {
-  margin: 5px 0;
-  word-break: break-all; /* Rompe palabras largas */
+.block-info {
+  background-color: #E3F2FD;  /* Azul muy claro */
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  border-left: 4px solid #2196F3;
 }
 
-.block ul {
-  padding-left: 20px;
-  margin: 5px 0;
-  list-style-type: none; /* Quita los puntos de la lista */
+.block-info p {
+  margin: 8px 0;
+  word-break: break-all;
+  font-family: monospace;
 }
 
-.block li {
-  font-size: 0.9em;
-  margin-bottom: 5px;
-  word-break: break-all; /* Rompe palabras largas en las transacciones */
+.block-info strong {
+  color: #1976D2;  /* Azul oscuro */
+}
+
+.transactions-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.transaction {
+  border: 1px solid #ddd;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 5px;
+  transition: transform 0.2s ease;
+}
+
+.transaction:hover {
+  transform: translateX(5px);
+}
+
+.transaction-coinbase {
+  background-color: #F1F8E9;  /* Verde muy claro */
+  border-left: 4px solid #8BC34A;  /* Verde material */
+}
+
+.transaction-regular {
+  background-color: #FFF8E1;  /* Amarillo muy claro */
+  border-left: 4px solid #FFC107;  /* Amarillo material */
+}
+
+.transaction-header {
+  font-weight: bold;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #ddd;
+}
+
+.transaction-coinbase .transaction-header {
+  color: #689F38;  /* Verde oscuro */
+}
+
+.transaction-regular .transaction-header {
+  color: #FFA000;  /* Amarillo oscuro */
+}
+
+.transaction-data {
+  margin: 8px 0;
+  word-break: break-all;
+  font-family: monospace;
+  padding: 4px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 3px;
+}
+
+.transaction-data strong {
+  display: inline-block;
+  min-width: 80px;
+  color: #455A64;  /* Gris azulado */
+}
+
+.transaction-amount {
+  font-weight: bold;
+  color: #43A047;  /* Verde */
 }
 
 .arrow {
   position: absolute;
-  right: -15px;
+  right: -20px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 24px;
-  color: #4CAF50;
+  color: #2196F3;
+  background-color: white;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   z-index: 1;
 }
 
-.hash, .address {
-  word-break: break-all; /* Asegura que los hashes largos se rompan */
+/* Estilo especial para el bloque génesis */
+.block.genesis {
+  border-color: #9C27B0;  /* Púrpura material */
+  box-shadow: 0 2px 5px rgba(156, 39, 176, 0.2);  /* Sombra púrpura suave */
+}
+
+.block.genesis h3 {
+  background-color: #9C27B0;
+}
+
+.block.genesis .block-info {
+  border-left-color: #9C27B0;
+  background-color: #F3E5F5;  /* Púrpura muy claro */
+}
+
+.block.genesis .block-info strong {
+  color: #7B1FA2;  /* Púrpura oscuro */
+}
+
+/* Títulos de secciones */
+h4 {
+  color: #455A64;
+  border-bottom: 2px solid #E0E0E0;
+  padding-bottom: 8px;
+  margin: 15px 0;
+}
+
+/* Mensaje de no transacciones */
+.no-transactions {
+  color: #757575;
+  font-style: italic;
+  text-align: center;
+  padding: 10px;
+  background-color: #F5F5F5;
+  border-radius: 5px;
 }

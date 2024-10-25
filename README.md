@@ -1,111 +1,120 @@
-# Blockchain Simulator
+# 🔗 Simulador de Blockchain
 
-Este proyecto es un simulador de blockchain que incluye un backend en Python y un frontend en React. Simula las operaciones básicas de una blockchain, incluyendo minería de bloques, transacciones, y visualización de la cadena.
+Un simulador de blockchain educativo que implementa los conceptos fundamentales de la tecnología blockchain, incluyendo minería, transacciones, firma digital y prueba de trabajo. Desarrollado con Python (Flask) en el backend y React en el frontend.
 
-## Características
+## ⭐ Características
 
-- Simulación de blockchain con prueba de trabajo (PoW)
-- Generación de wallets con claves públicas y privadas
-- Realización de transacciones entre wallets
-- Minería de bloques con recompensa
-- Visualización interactiva de la cadena de bloques
-- Verificación de integridad de bloques (hash previo y prueba de trabajo)
-- Encriptación y desencriptación de claves privadas
-- Firma digital de transacciones
+- Simulación completa de una blockchain con prueba de trabajo (PoW)
+- Billeteras digitales con pares de claves criptográficas (pública/privada)
+- Sistema de transacciones con firmas digitales
+- Mempool para transacciones pendientes
+- Minería de bloques con recompensas y comisiones
+- Interfaz web interactiva para visualización de la cadena
+- Verificación de integridad de bloques y transacciones
+- Encriptación AES para claves privadas
 
-## Requisitos previos
+## 🔧 Requisitos Previos
 
-- Python 3.8+
-- Node.js 14+
-- npm 6+
+- Python 3.8 o superior
+- Node.js 14 o superior
+- npm 6 o superior
 
-## Configuración
-
-### Backend
-
-1. Navega al directorio del backend:
-   ```
-   cd blockchain-simulator/backend
-   ```
-
-2. Crea un entorno virtual:
-   ```
-   python -m venv venv
-   ```
-
-3. Activa el entorno virtual:
-   - En Windows:
-     ```
-     venv\Scripts\activate
-     ```
-   - En macOS y Linux:
-     ```
-     source venv/bin/activate
-     ```
-
-4. Instala las dependencias:
-   ```
-   pip install -r requirements.txt
-   ```
-
-### Frontend
-
-1. Navega al directorio del frontend:
-   ```
-   cd blockchain-simulator/frontend
-   ```
-
-2. Instala las dependencias:
-   ```
-   npm install
-   ```
-
-## Ejecución
-
-1. Inicia el backend:
-   ```
-   cd blockchain-simulator/backend
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-   python app.py
-   ```
-
-2. En otra terminal, inicia el frontend:
-   ```
-   cd blockchain-simulator/frontend
-   npm start
-   ```
-
-3. Abre un navegador y ve a `http://localhost:3000` para ver la aplicación.
-
-## Estructura del proyecto
+## 📁 Estructura del Proyecto
 
 ```
 blockchain-simulator/
 ├── backend/
-│   ├── app.py
-│   ├── blockchain.py
-│   └── requirements.txt
+│   ├── app.py                 # Servidor Flask y endpoints API
+│   ├── blockchain.py          # Lógica principal de la blockchain
+│   └── requirements.txt       # Dependencias de Python
 ├── frontend/
-│   ├── public/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Block.js
-│   │   │   ├── Block.css
-│   │   │   ├── Blockchain.js
-│   │   │   ├── Blockchain.css
-│   │   │   ├── Transaction.js
-│   │   │   ├── Wallet.js
-│   │   │   └── Wallet.css
-│   │   ├── App.js
-│   │   ├── App.css
-│   │   └── index.js
-│   └── package.json
+│   │   │   ├── Block.js/.css       # Componente de bloque individual
+│   │   │   ├── Blockchain.js/.css  # Visualización de la cadena
+│   │   │   ├── Mempool.js/.css     # Gestión de transacciones pendientes
+│   │   │   ├── Transaction.js      # Formulario de transacciones
+│   │   │   ├── VerifyBlock.js/.css # Verificación de bloques
+│   │   │   └── Wallet.js/.css      # Gestión de billetera
+│   │   ├── App.js                  # Componente principal
+│   │   └── App.css                 # Estilos principales
+│   └── package.json                # Dependencias de Node.js
 └── README.md
 ```
 
-## Funcionalidades principales
+## 🚀 Instalación y Configuración
 
-- **Wallet**: Genera y muestra información de la billetera, incluyendo dirección y clave privada encriptada.
-- **Transacción**: Permite realizar transacciones entre direcciones.
-- **Minería**: Permite minar nuevos bloques y recibir recompensas.
-- **Blockchain**: Visualiza la cadena de bloques completa con detalles de cada bloque y transacción.
+### Backend
+
+1. Crear y activar entorno virtual:
+```bash
+cd backend
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# Linux/macOS
+source venv/bin/activate
+```
+
+2. Instalar dependencias:
+```bash
+pip install -r requirements.txt
+```
+
+### Frontend
+
+1. Instalar dependencias:
+```bash
+cd frontend
+npm install
+```
+
+## 🎮 Ejecución
+
+1. Iniciar el backend (en una terminal):
+```bash
+cd backend
+source venv/bin/activate  # o venv\Scripts\activate en Windows
+python app.py
+```
+
+2. Iniciar el frontend (en otra terminal):
+```bash
+cd frontend
+npm start
+```
+
+3. Abrir http://localhost:3000 en el navegador
+
+## 💡 Guía de Uso
+
+### 👛 Billetera Digital
+- Las billeteras se generan automáticamente al iniciar
+- Reciben 10 BBC (BlockchainCoin) iniciales
+- La clave privada está encriptada (contraseña por defecto: 1234)
+
+### 💸 Transacciones
+1. Ir a la pestaña "Transacción"
+2. Ingresar la dirección del destinatario
+3. Especificar cantidad y comisión
+4. Usar la clave privada para firmar
+
+### ⛏️ Minería
+1. Acceder a la pestaña "Mempool"
+2. Seleccionar hasta 3 transacciones para incluir en el bloque
+3. Hacer clic en "Minar" para iniciar el proceso
+4. La recompensa incluye comisiones + recompensa base
+
+## 📚 Tecnologías Utilizadas
+
+### Backend
+- Flask (API REST)
+- PyCrypto (Criptografía)
+- ECDSA (Firmas digitales)
+
+### Frontend
+- React
+- CSS3
+- Fetch API
