@@ -7,6 +7,7 @@ import traceback
 import re
 import hashlib
 import json
+from time import time
 
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
@@ -36,7 +37,10 @@ def generate_wallet():
     
     address = generate_address_from_public_key(public_key)
 
-    # Store the public key with the address
+    # Initialize balance and store public key
+    if not hasattr(blockchain, 'public_keys'):
+        blockchain.public_keys = {}
+    
     blockchain.public_keys[address] = public_key
     blockchain.balances[address] = 10  # Dar 10 unidades de moneda inicial
     print(f"Setting balance for {address}: {blockchain.balances[address]}")
@@ -56,59 +60,79 @@ def mine():
         if not miner_address:
             return jsonify({'message': 'Missing miner address'}), 400
 
+        print(f"Iniciando minado para dirección: {miner_address}")
         block = blockchain.mine(miner_address)
+        
+        print("Verificando validez de la cadena después del minado...")
+        if not blockchain.validate_chain():
+            print("La cadena no es válida después del minado")
+            blockchain.chain.pop()  # Removemos el último bloque
+            return jsonify({'message': 'Mining failed: invalid blockchain state'}), 500
 
         response = {
             'message': "New Block Forged",
             'index': block['index'],
             'transactions': block['transactions'],
             'previous_hash': block['previous_hash'],
+            'hash': block['hash'],
+            'reward': next(tx['amount'] for tx in block['transactions'] if tx['sender'] == "0")
         }
+        print("Minado exitoso")
         return jsonify(response), 200
+
     except Exception as e:
-        app.logger.error(f"Error mining new block: {str(e)}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({'message': f'Error mining new block: {str(e)}'}), 500
+        print(f"Error durante el minado: {str(e)}")
+        return jsonify({'message': f'Mining failed: {str(e)}'}), 500
 
 @app.route('/transactions/new', methods=['POST'])
 def new_transaction():
     try:
         values = request.get_json()
-        required = ['sender', 'recipient', 'amount', 'privateKey']
+        required = ['sender', 'recipient', 'amount', 'fee', 'privateKey']  # Añadido 'fee'
         if not all(k in values for k in required):
             return jsonify({'message': 'Missing values'}), 400
 
         sender = clean_public_key(values['sender'])
         recipient = clean_public_key(values['recipient'])
         amount = float(values['amount'])
+        fee = float(values['fee'])
         private_key = values['privateKey']
 
         # Crear la transacción
         transaction = {
             'sender': sender,
             'recipient': recipient,
-            'amount': amount
+            'amount': amount,
+            'fee': fee,
+            'timestamp': time()  # Añadido para ordenar por antigüedad si es necesario
         }
 
         # Firmar la transacción
         signature = sign_transaction(private_key, transaction)
-
-        # Agregar la firma a la transacción
         transaction['signature'] = signature.hex()
 
-        # Crear la transacción y minar el bloque inmediatamente
-        block = blockchain.new_transaction_and_mine(sender, recipient, amount, transaction['signature'])
+        # Añadir a la mempool en lugar de minar inmediatamente
+        blockchain.add_to_mempool(transaction)
         
-        response = {
-            'message': f'Transaction processed and added to Block {block["index"]}'
-        }
-        return jsonify(response), 201
+        return jsonify({'message': 'Transaction added to mempool'}), 201
     except ValueError as ve:
         return jsonify({'message': str(ve)}), 400
     except Exception as e:
         app.logger.error(f"Error processing transaction: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'message': f'Error processing transaction: {str(e)}'}), 500
+
+@app.route('/mempool', methods=['GET'])
+def get_mempool():
+    """Endpoint para obtener las transacciones pendientes en la mempool"""
+    mempool = blockchain.get_mempool()
+    current_reward = blockchain.calculate_block_reward()
+    
+    return jsonify({
+        'pending_transactions': mempool,
+        'current_block_reward': current_reward,
+        'mempool_size': len(mempool)
+    }), 200
 
 @app.route('/chain', methods=['GET'])
 def full_chain():

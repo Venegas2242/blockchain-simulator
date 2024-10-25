@@ -3,18 +3,25 @@ import React, { useState } from 'react';
 function Transaction({ onNewTransaction, address }) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
+  const [fee, setFee] = useState('');  // Añadido estado para fee
   const [privateKey, setPrivateKey] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onNewTransaction({
+    const transaction = {
       sender: address,
       recipient,
       amount: parseFloat(amount),
+      fee: parseFloat(fee),  // Incluido fee en la transacción
       privateKey
-    });
+    };
+    console.log("Transacción a realizar: ", transaction);
+    onNewTransaction(transaction);
+    
+    // Limpiar el formulario
     setRecipient('');
     setAmount('');
+    setFee('');
     setPrivateKey('');
   };
 
@@ -39,6 +46,17 @@ function Transaction({ onNewTransaction, address }) {
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="fee">Comisión:</label>
+          <input
+            id="fee"
+            type="number"
+            step="0.01"
+            value={fee}
+            onChange={(e) => setFee(e.target.value)}
             required
           />
         </div>

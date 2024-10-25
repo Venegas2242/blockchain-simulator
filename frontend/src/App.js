@@ -3,7 +3,8 @@ import './App.css';
 import Wallet from './components/Wallet';
 import Transaction from './components/Transaction';
 import Blockchain from './components/Blockchain';
-import VerifyBlock from './components/VerifyBlock'; // Verificacion
+import VerifyBlock from './components/VerifyBlock';
+import Mempool from './components/Mempool';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -13,7 +14,7 @@ function App() {
   const [blockchain, setBlockchain] = useState([]);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('wallet');
-  const [verifyResult, setVerifyResult] = useState(null); // Estado para almacenar el resultado de la verificación
+  const [verifyResult, setVerifyResult] = useState(null);
 
   const fetchBalance = useCallback(async (address) => {
     if (!address) return;
@@ -87,55 +88,32 @@ function App() {
   };
 
   const handleNewTransaction = async (transaction) => {
-    console.log("Transacción a realizar: ", transaction)
     try {
+      console.log("Transacción a realizar: ", transaction);
       const response = await fetch(`${API_URL}/transactions/new`, {
-        method: 'POST',  
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(transaction),
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to create transaction');
       }
+
       const data = await response.json();
-      console.log('Transaction created:', data);
+      console.log('Transaction added to mempool:', data);
       
       await fetchBlockchain();
       if (wallet?.address) {
         await fetchBalance(wallet.address);
       }
+      setError(null);
     } catch (error) {
       console.error('Error creating transaction:', error);
       setError(`Failed to create transaction: ${error.message}`);
-    }
-  };
-
-  const handleMine = async () => {
-    try {
-      const response = await fetch(`${API_URL}/mine`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ miner_address: wallet?.address }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to mine block');
-      }
-      const data = await response.json();
-      console.log('Mined block:', data);
-      
-      await fetchBlockchain();
-      if (wallet?.address) {
-        await fetchBalance(wallet.address);
-      }
-    } catch (error) {
-      console.error('Error mining:', error);
-      setError(`Failed to mine block: ${error.message}`);
     }
   };
 
@@ -172,7 +150,7 @@ function App() {
         <div className="tab-container">
           <button className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} onClick={() => setActiveTab('wallet')}>Billetera</button>
           <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transacción</button>
-          <button className={`tab ${activeTab === 'mining' ? 'active' : ''}`} onClick={() => setActiveTab('mining')}>Minar</button>
+          <button className={`tab ${activeTab === 'mempool' ? 'active' : ''}`} onClick={() => setActiveTab('mempool')}>Mempool</button>
           <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
           <button className={`tab ${activeTab === 'verify' ? 'active' : ''}`} onClick={() => setActiveTab('verify')}>Verificar</button>
         </div>
@@ -185,9 +163,16 @@ function App() {
         <div className={`tab-content ${activeTab === 'transaction' ? 'active' : ''}`}>
           <Transaction onNewTransaction={handleNewTransaction} address={wallet?.address} />
         </div>
-        
-        <div className={`tab-content ${activeTab === 'mining' ? 'active' : ''}`}>
-          <button onClick={handleMine}>Minar un bloque</button>
+
+        <div className={`tab-content ${activeTab === 'mempool' ? 'active' : ''}`}>
+          <Mempool 
+            wallet={wallet}
+            onRefresh={() => {
+              fetchBlockchain();
+              if (wallet?.address) fetchBalance(wallet.address);
+            }}
+            onError={setError}
+          />
         </div>
         
         <div className={`tab-content ${activeTab === 'blockchain' ? 'active' : ''}`}>
@@ -195,7 +180,8 @@ function App() {
         </div>
 
         <div className={`tab-content ${activeTab === 'verify' ? 'active' : ''}`}>
-        <VerifyBlock onVerifyResult={handleVerifyBlock} />
+          <VerifyBlock onVerifyResult={handleVerifyBlock} />
+          {verifyResult && <div className="verify-result">{verifyResult}</div>}
         </div>
       </main>
     </div>
