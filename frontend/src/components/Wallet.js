@@ -5,6 +5,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Wallet = ({ wallet, balance }) => {
   const [showAddress, setShowAddress] = useState(false);
+  const [showPublicKey, setShowPublicKey] = useState(false);
   const [password, setPassword] = useState('');
   const [showPasswordInput, setShowPasswordInput] = useState(false);
 
@@ -23,6 +24,10 @@ const Wallet = ({ wallet, balance }) => {
 
   const handleAddressReveal = () => {
     setShowAddress(true);
+  };
+
+  const handlePublicKeyReveal = () => {
+    setShowPublicKey(true);
   };
 
   const handleDecryptPrivateKey = async () => {
@@ -58,7 +63,7 @@ const Wallet = ({ wallet, balance }) => {
   return (
     <div className="wallet">
       <p>
-      <strong>Dirección: </strong>
+        <strong>Dirección: </strong>
         {showAddress ? (
           <>
             {truncateKey(wallet.address)}
@@ -69,7 +74,18 @@ const Wallet = ({ wallet, balance }) => {
         )}
       </p>
       <p>
-      <strong>Llave Privada (Cifrada):</strong> {truncateKey(wallet.encrypted_key)}
+        <strong>Llave Pública: </strong>
+        {showPublicKey ? (
+          <>
+            {truncateKey(wallet.public_key)}
+            <button onClick={() => copyToClipboard(wallet.public_key)}>Copiar</button>
+          </>
+        ) : (
+          <button onClick={handlePublicKeyReveal}>Mostrar llave pública</button>
+        )}
+      </p>
+      <p>
+        <strong>Llave Privada (Cifrada):</strong> {truncateKey(wallet.encrypted_key)}
         <button onClick={() => setShowPasswordInput(true)}>Decifrar y copiar</button>
       </p>
       {showPasswordInput && (

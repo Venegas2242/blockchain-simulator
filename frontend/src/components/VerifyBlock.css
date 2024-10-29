@@ -1,49 +1,79 @@
-/* src/components/VerifyBlock.css */
 .verify-block {
-    background-color: #e8f5e9; /* Fondo verde claro */
-    border: 2px solid #4CAF50; /* Borde verde */
-    border-radius: 10px;
-    padding: 15px;
-    margin-bottom: 20px;
-  }
-  
-  .verify-block h2 {
-    color: #2E7D32; /* Color de texto verde oscuro */
-    margin-top: 0;
-  }
-  
-  .verify-block p {
-    margin: 10px 0;
-  }
-  
-  .verify-block input {
-    width: calc(100% - 130px);
-    padding: 5px;
-    margin-right: 10px;
-    border: 1px solid #4CAF50;
-    border-radius: 5px;
-  }
-  
-  .verify-block button {
-    padding: 5px 10px;
-    background-color: #4CAF50; /* Fondo verde */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  
-  .verify-block button:hover {
-    background-color: #45a049; /* Verde más oscuro al pasar el mouse */
-  }
-  
-  .verification-result {
-    color: #2E7D32; /* Verde para el resultado */
-    font-weight: bold;
-    margin-top: 10px;
-  }
-  
-  .verification-result.error {
-    color: #D32F2F; /* Rojo para el resultado de error */
-  }
-  
+  background-color: #e8f5e9;
+  border: 2px solid #4CAF50;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.verify-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.verify-block h2 {
+  color: #2E7D32;
+  margin: 0;
+}
+
+.clear-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 15px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.clear-button:hover {
+  background-color: #d32f2f;
+}
+
+.verify-block input, .verify-block select {
+  width: calc(100% - 20px);
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #4CAF50;
+  border-radius: 5px;
+}
+
+.verify-block input::placeholder {
+  color: #999;
+}
+
+.verify-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.verify-button:hover {
+  background-color: #45a049;
+}
+
+.result-container {
+  text-align: center;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.result-container.error {
+  background-color: #f44336;
+  color: white;
+}
+
+.result-container.valid {
+  background-color: #4CAF50;
+  color: white;
+}

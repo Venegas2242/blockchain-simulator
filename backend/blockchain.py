@@ -5,6 +5,7 @@ from ecdsa import SigningKey, VerifyingKey, SECP256k1
 import math
 
 def verify_signature(public_key, transaction, signature):
+    # Verifica la firma de la transacción usando la clave pública.
     vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
     transaction_string = json.dumps(transaction, sort_keys=True)
     try:
@@ -12,6 +13,7 @@ def verify_signature(public_key, transaction, signature):
         return True
     except:
         return False
+
 
 class Blockchain:
     def __init__(self):
@@ -61,11 +63,6 @@ class Blockchain:
             nonce += 1
             
     def validate_chain(self):
-        """
-        Verifica la integridad de toda la cadena
-        """
-        print("Validando cadena...")
-        
         # Si solo tenemos el bloque génesis, la cadena es válida
         if len(self.chain) == 1:
             print("Solo bloque génesis - válido")
@@ -140,23 +137,26 @@ class Blockchain:
 
         self.mempool.append(transaction)
         return True
-
+    
     def verify_transaction(self, transaction):
-        """
-        Verifica una transacción antes de añadirla a la mempool
-        """
+        # Si la transacción es de tipo 'coinbase' no necesita verificación
         if transaction['sender'] == "0":
             return True
 
+        # Verificar que la transacción tenga una firma
         if 'signature' not in transaction:
             return False
 
+        # Obtener la clave pública del remitente
         public_key = self.public_keys.get(transaction['sender'])
         if not public_key:
             return False
 
+        # Hacer una copia de la transacción y eliminar el campo 'signature'
         transaction_copy = transaction.copy()
         signature = transaction_copy.pop('signature')
+
+        # Verificar la firma utilizando los datos de la transacción (sin la firma)
         return verify_signature(public_key, transaction_copy, signature)
 
     def get_mempool(self):

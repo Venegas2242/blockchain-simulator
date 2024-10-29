@@ -27,23 +27,46 @@ def clean_public_key(key):
 
 @app.route('/generate_wallet', methods=['GET'])
 def generate_wallet():
+    print("\n=== INICIO DE GENERACIÓN DE WALLET ===")
     password = "1234"
+    
+    # 1. Generación de par de llaves usando ECDSA con curva SECP256k1
+    print("1. Generando par de llaves usando ECDSA (Elliptic Curve Digital Signature Algorithm)")
+    print("   Usando la curva SECP256k1 (la misma que usa Bitcoin)")
     sk = SigningKey.generate(curve=SECP256k1)
     vk = sk.get_verifying_key()
     
+    # 2. Convertir llaves a formato hexadecimal
+    print("\n2. Convirtiendo llaves a formato hexadecimal")
     private_key = binascii.hexlify(sk.to_string()).decode('ascii')
-    encrypted = encrypt_private_key(private_key, password)
     public_key = binascii.hexlify(vk.to_string()).decode('ascii')
+    print(f"   Llave privada (primeros 32 chars): {private_key[:32]}...")
+    print(f"   Llave pública (primeros 32 chars): {public_key[:32]}...")
     
+    # 3. Cifrar llave privada usando AES y PBKDF2
+    print("\n3. Cifrando llave privada:")
+    print("   - Usando PBKDF2 (Password-Based Key Derivation Function 2)")
+    print("   - AES en modo CBC para el cifrado")
+    print("   - Generando salt aleatorio de 16 bytes")
+    encrypted = encrypt_private_key(private_key, password)
+    
+    # 4. Generar dirección usando RIPEMD160
+    print("\n4. Generando dirección usando algoritmo RIPEMD160:")
+    print("   a) Convertir llave pública a bytes")
+    print("   b) Calcular SHA256 de la llave pública")
+    print("   c) Calcular RIPEMD160 del resultado de SHA256")
     address = generate_address_from_public_key(public_key)
+    print(f"   Dirección generada: {address}")
 
-    # Initialize balance and store public key
+    # 5. Inicializar balance y almacenar llave pública
+    print("\n5. Inicializando wallet en la blockchain:")
     if not hasattr(blockchain, 'public_keys'):
         blockchain.public_keys = {}
     
     blockchain.public_keys[address] = public_key
-    blockchain.balances[address] = 10  # Dar 10 unidades de moneda inicial
-    print(f"Setting balance for {address}: {blockchain.balances[address]}")
+    blockchain.balances[address] = 10  # Balance inicial
+    print(f"   Balance inicial establecido: {blockchain.balances[address]} BBC")
+    print("=== FIN DE GENERACIÓN DE WALLET ===\n")
 
     return jsonify({
         'private_key': private_key,
@@ -54,74 +77,102 @@ def generate_wallet():
 
 @app.route('/mine', methods=['POST'])
 def mine():
+    print("\n=== INICIO DE MINADO ===")
     try:
         values = request.get_json()
         miner_address = clean_public_key(values.get('miner_address'))
         selected_transactions = values.get('selected_transactions', [])
         
-        if not miner_address:
-            return jsonify({'message': 'Missing miner address'}), 400
+        print(f"1. Minero: {miner_address[:8]}...")
+        print(f"2. Transacciones seleccionadas: {len(selected_transactions)}")
 
-        print(f"Iniciando minado para dirección: {miner_address}")
+        # 1. Minar el bloque
+        print("\n3. Iniciando proceso de minado:")
+        print("   a) Seleccionando transacciones de la mempool")
+        print("   b) Calculando recompensa y comisiones")
+        print("   c) Creando transacción coinbase")
+        print("   d) Calculando merkle root")
+        print("   e) Buscando nonce válido (Proof of Work)")
         block = blockchain.mine(miner_address, selected_transactions)
         
-        print("Verificando validez de la cadena después del minado...")
+        # 2. Verificar validez de la cadena
+        print("\n4. Verificando validez de la cadena completa")
         if not blockchain.validate_chain():
-            print("La cadena no es válida después del minado")
-            blockchain.chain.pop()  # Removemos el último bloque
+            print("ERROR: La cadena no es válida después del minado")
+            blockchain.chain.pop()
             return jsonify({'message': 'Mining failed: invalid blockchain state'}), 500
 
-        response = {
+        print("\n5. Minado exitoso:")
+        print(f"   Nuevo bloque: #{block['index']}")
+        print(f"   Hash: {block['hash'][:16]}...")
+        print(f"   Transacciones: {len(block['transactions'])}")
+        reward = next(tx['amount'] for tx in block['transactions'] if tx['sender'] == "0")
+        print(f"   Recompensa total: {reward} BBC")
+        print("=== FIN DE MINADO ===\n")
+
+        return jsonify({
             'message': "New Block Forged",
             'index': block['index'],
             'transactions': block['transactions'],
             'previous_hash': block['previous_hash'],
             'hash': block['hash'],
-            'reward': next(tx['amount'] for tx in block['transactions'] if tx['sender'] == "0")
-        }
-        print("Minado exitoso")
-        return jsonify(response), 200
+            'reward': reward
+        }), 200
 
     except Exception as e:
-        print(f"Error durante el minado: {str(e)}")
+        print(f"ERROR durante el minado: {str(e)}")
         return jsonify({'message': f'Mining failed: {str(e)}'}), 500
 
 @app.route('/transactions/new', methods=['POST'])
 def new_transaction():
+    print("\n=== INICIO DE NUEVA TRANSACCIÓN ===")
     try:
         values = request.get_json()
-        required = ['sender', 'recipient', 'amount', 'fee', 'privateKey']  # Añadido 'fee'
+        required = ['sender', 'recipient', 'amount', 'fee', 'privateKey']
         if not all(k in values for k in required):
             return jsonify({'message': 'Missing values'}), 400
 
+        # 1. Preparar datos de la transacción
+        print("1. Preparando datos de la transacción")
         sender = clean_public_key(values['sender'])
         recipient = clean_public_key(values['recipient'])
         amount = float(values['amount'])
         fee = float(values['fee'])
         private_key = values['privateKey']
+        
+        print(f"   De: {sender[:8]}...")
+        print(f"   Para: {recipient[:8]}...")
+        print(f"   Cantidad: {amount} BBC")
+        print(f"   Comisión: {fee} BBC")
 
-        # Crear la transacción
+        # 2. Crear objeto de transacción
+        print("\n2. Creando objeto de transacción")
         transaction = {
             'sender': sender,
             'recipient': recipient,
             'amount': amount,
             'fee': fee,
-            'timestamp': time()  # Añadido para ordenar por antigüedad si es necesario
+            'timestamp': time()
         }
+        print("   Transacción creada con timestamp:", transaction['timestamp'])
 
-        # Firmar la transacción
+        # 3. Firmar la transacción
+        print("\n3. Firmando transacción:")
+        print("   a) Serializando transacción a JSON")
+        print("   b) Generando firma usando ECDSA con la llave privada")
         signature = sign_transaction(private_key, transaction)
         transaction['signature'] = signature.hex()
+        print(f"   Firma generada (primeros 32 chars): {transaction['signature'][:32]}...")
 
-        # Añadir a la mempool en lugar de minar inmediatamente
+        # 4. Añadir a la mempool
+        print("\n4. Añadiendo transacción a la mempool")
         blockchain.add_to_mempool(transaction)
+        print("=== FIN DE NUEVA TRANSACCIÓN ===\n")
         
         return jsonify({'message': 'Transaction added to mempool'}), 201
-    except ValueError as ve:
-        return jsonify({'message': str(ve)}), 400
+
     except Exception as e:
-        app.logger.error(f"Error processing transaction: {str(e)}")
-        app.logger.error(traceback.format_exc())
+        print(f"ERROR en nueva transacción: {str(e)}")
         return jsonify({'message': f'Error processing transaction: {str(e)}'}), 500
 
 @app.route('/mempool', methods=['GET'])
@@ -165,26 +216,30 @@ def generate_address_from_public_key(public_key):
     return ripemd160_hash
 
 def encrypt_private_key(private_key, password):
-    # Generate a random salt
+    print("\n--- INICIO DE CIFRADO DE LLAVE PRIVADA ---")
+    # 1. Generar salt aleatorio
     salt = get_random_bytes(16)
+    print(f"Salt generado (hex): {salt.hex()}")
 
-    # Derive a 32-byte key from the password using PBKDF2
+    # 2. Derivar llave de 32 bytes usando PBKDF2
+    print("Derivando llave de 32 bytes usando PBKDF2")
     key = PBKDF2(password, salt, dkLen=32)
+    print(f"Llave derivada (hex): {key.hex()}")
 
-    # Create an AES cipher object
+    # 3. Crear objeto AES en modo CBC
     cipher = AES.new(key, AES.MODE_CBC)
+    print(f"IV generado (hex): {cipher.iv.hex()}")
 
-    # Pad the private key
+    # 4. Padding y cifrado
+    print("Aplicando padding PKCS7 y cifrando con AES-CBC")
     padded_data = pad(private_key.encode(), AES.block_size)
-
-    # Encrypt the padded data
     encrypted_data = cipher.encrypt(padded_data)
 
-    # Combine salt, IV, and encrypted data
+    # 5. Combinar salt, IV y datos cifrados
     encrypted_private_key = salt + cipher.iv + encrypted_data
-
-    # Encode as base64 for easy storage/transmission
-    return base64.b64encode(encrypted_private_key).decode()
+    result = base64.b64encode(encrypted_private_key).decode()
+    print("--- FIN DE CIFRADO DE LLAVE PRIVADA ---\n")
+    return result
 
 @app.route('/decrypt_private_key', methods=['POST'])
 def decrypt_private_key_route():
@@ -236,55 +291,50 @@ def sign_transaction(private_key, transaction):
     except Exception as e:
         print(f"Error al firmar la transacción: {str(e)}")
         raise
-    
-#! USAR O ADAPTAR PARA VERIFICAR BLOQUES
-# def verify_signature(public_key, transaction, signature):
-#     """Verifica la firma de una transacción usando la clave pública."""
-#     vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
-#     transaction_string = json.dumps(transaction, sort_keys=True)
-#     try:
-#         vk.verify(signature, transaction_string.encode())
-#         return True
-#     except:
-#         return False
 
-# Verificacion
 @app.route('/verify_block', methods=['POST'])
 def verify_block():
-    data = request.get_json()
-    block_index = data.get('block_index')
-    if block_index is None or not (0 <= block_index < len(blockchain.chain)):
-        return jsonify({'message': 'Invalid block index'}), 400
+    try:
+        data = request.get_json()
+        block_index = data.get('block_index')
+        transaction_data = data.get('transaction')
+        signature = data.get('signature')
+        public_key = data.get('public_key')
 
-    block = blockchain.chain[block_index]
-    if verify_block_transactions(block):
-        return jsonify({'message': f'Block {block_index} is valid'}), 200
-    else:
-        return jsonify({'message': f'Block {block_index} contains invalid transactions'}), 400
+        transaction_data['amount'] = float(transaction_data['amount'])
+        transaction_data['fee'] = float(transaction_data['fee'])
 
-def verify_block_transactions(block):
-    for transaction in block['transactions']:
-        sender = transaction['sender']
+        # Get the block from the specified index
+        block = blockchain.chain[block_index]
 
-        if sender == "0": # Si es minado
-            return True
-        
-        signature = transaction['signature']
+        # Find the specific transaction in the block
+        matching_transaction = next(
+            (tx for tx in block['transactions'] if 
+             tx['sender'] == transaction_data['sender'] and 
+             tx['recipient'] == transaction_data['recipient'] and 
+             tx['amount'] == transaction_data['amount'] and 
+             tx['fee'] == transaction_data['fee']),
+            None
+        )  
 
-        # Obtenemos clave publica
-        public_key = blockchain.public_keys.get(sender)
-        if not public_key:
-            return False  
-        
-        # Crear una copia de la transacción sin la firma para verificarla
-        transaction_copy = transaction.copy()
-        transaction_copy.pop('signature')
-        
-        # Verificar la firma
-        if not verify_signature(public_key, transaction_copy, signature):
-            return False  
-    return True
+        if not matching_transaction:
+            return jsonify({'message': 'Error'}), 400
 
+        # Access the timestamp from the specific transaction in the block
+        transaction_data['timestamp'] = matching_transaction['timestamp']
+
+        # Create a copy of the transaction without the signature to verify it
+        transaction_copy = transaction_data.copy()
+        transaction_copy.pop('signature', None)
+
+        # Verify the signature using the provided public key
+        is_valid = verify_signature(public_key, transaction_copy, signature)
+        if is_valid:
+            return jsonify({'message': 'Válido'}), 200
+        else:
+            return jsonify({'message': 'Error'}), 400
+    except Exception as e:
+        return jsonify({'message': 'Error'}), 400
 
 @app.route('/balance', methods=['GET'])
 def get_balance():
