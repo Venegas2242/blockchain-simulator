@@ -122,18 +122,44 @@ class Blockchain:
             
         self.chain.append(block)
         return block
+    
+    def get_available_balance(self, address):
+        """
+        Obtiene el balance disponible considerando tanto el balance actual
+        como las transacciones pendientes en mempool
+        """
+        # Obtener balance actual
+        current_balance = self.get_balance(address)
+        
+        # Calcular cantidad comprometida en mempool
+        pending_amount = 0
+        for tx in self.mempool:
+            if tx['sender'] == address:
+                pending_amount += tx['amount'] + tx['fee']
+        
+        # Balance disponible = balance actual - cantidad comprometida
+        available_balance = current_balance - pending_amount
+        print(f"\nCalculando balance disponible para {address}:")
+        print(f"Balance actual: {current_balance}")
+        print(f"Cantidad comprometida en mempool: {pending_amount}")
+        print(f"Balance disponible: {available_balance}")
+        
+        return available_balance
 
     def add_to_mempool(self, transaction):
         """
-        Añade una transacción a la mempool
+        Añade una transacción a la mempool verificando el balance disponible
         """
         if not self.verify_transaction(transaction):
             raise ValueError("Invalid transaction")
         
         sender = transaction['sender']
         total_amount = transaction['amount'] + transaction['fee']
-        if self.get_balance(sender) < total_amount:
-            raise ValueError("Insufficient funds")
+        
+        # Verificar balance disponible considerando transacciones pendientes
+        available_balance = self.get_available_balance(sender)
+        if available_balance < total_amount:
+            raise ValueError(f"Insufficient funds. Available: {available_balance}, Required: {total_amount}")
 
         self.mempool.append(transaction)
         return True
