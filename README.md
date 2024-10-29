@@ -93,19 +93,45 @@ npm start
 ### 👛 Billetera Digital
 - Las billeteras se generan automáticamente al iniciar
 - Reciben 10 BBC (BlockchainCoin) iniciales
-- La clave privada está encriptada (contraseña por defecto: 1234)
+- La clave privada está encriptada con AES-256 en modo CBC
+- Contraseña por defecto: 1234
 
 ### 💸 Transacciones
 1. Ir a la pestaña "Transacción"
 2. Ingresar la dirección del destinatario
 3. Especificar cantidad y comisión
 4. Usar la clave privada para firmar
+5. La transacción se añade a la mempool
 
 ### ⛏️ Minería
 1. Acceder a la pestaña "Mempool"
 2. Seleccionar hasta 3 transacciones para incluir en el bloque
-3. Hacer clic en "Minar" para iniciar el proceso
-4. La recompensa incluye comisiones + recompensa base
+3. La recompensa incluye:
+    - Recompensa base (10 BBC)
+    - Comisiones de transacciones
+    - Halving cada 2 bloques  
+
+## 🔒 Seguridad
+
+### Generación de Claves
+- ECDSA con curva SECP256k1 (misma que Bitcoin)
+- Direcciones generadas con RIPEMD160(SHA256(public_key))
+- Claves privadas cifradas con:
+    - PBKDF2 para derivación de clave
+    - AES-256-CBC para cifrado
+    - Salt aleatorio de 16 bytes
+    - IV único por cifrado
+
+### Protección contra Doble Gasto
+- Verificación de balance considerando transacciones en mempool
+- Sistema de firmas digitales ECDSA
+- Verificación de transacciones antes del minado
+
+## Integridad de la Cadena
+- Hash SHA256 para bloques
+- Merkle Tree para transacciones
+- Proof of Work con dificultad de 4 ceros
+- Validación de cadena completa
 
 ## 📚 Tecnologías Utilizadas
 
