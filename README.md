@@ -133,6 +133,136 @@ npm start
 - Proof of Work con dificultad de 4 ceros
 - Validación de cadena completa
 
+### 📜 Smart Contract (Escrow)
+
+El simulador incluye un contrato inteligente de custodia (escrow) que actúa como intermediario confiable entre compradores y vendedores.
+
+#### 🔄 Flujo del Smart Contract
+
+1. **Creación del Acuerdo**
+   ```
+   Comprador ----[BBC + Comisiones]----> Smart Contract
+   ```
+   - El comprador envía:
+     * Monto principal (para el vendedor)
+     * Comisión del mediador (1%)
+     * Comisión de minería inicial (0.1%)
+     * Comisiones para transacciones finales (0.1% × 2)
+
+2. **Estados del Contrato**
+   ```
+   [PENDING_SELLER_CONFIRMATION] -> [AWAITING_SHIPMENT] -> [SHIPPED] -> [COMPLETED]
+   ```
+   - PENDING_SELLER_CONFIRMATION: Esperando que el vendedor acepte
+   - AWAITING_SHIPMENT: Vendedor aceptó, pendiente de envío
+   - SHIPPED: Producto enviado, esperando confirmación
+   - COMPLETED: Transacción finalizada
+
+3. **Liberación de Fondos**
+   ```
+   Smart Contract ----[BBC]--------> Vendedor
+                 ----[Comisión]----> Mediador
+   ```
+
+#### 💰 Estructura de Comisiones
+
+- **Comisión del Mediador**: 1% del monto principal
+  * Para resolución de disputas y mantenimiento
+  * Pagada por el comprador
+  * Liberada al completar la transacción
+
+- **Comisiones de Minería**:
+  * Transacción inicial: 0.1% (comprador al contrato)
+  * Transacción final al vendedor: 0.1%
+  * Transacción final al mediador: 0.1%
+
+#### 🔐 Seguridad del Contrato
+
+- **Fondos Bloqueados**
+  * Retenidos por el contrato hasta confirmación
+  * No pueden ser retirados sin consenso
+  * Sistema de timeouts para protección
+
+- **Verificación de Transacciones**
+  * Firma especial 'VALID' para transacciones del contrato
+  * Validación de estados y permisos
+  * Comprobación de balances y fondos bloqueados
+
+#### 📋 Ejemplo de Uso
+
+1. **Crear Acuerdo**
+   ```javascript
+   // Ejemplo con monto de 100 BBC
+   Monto principal: 100 BBC
+   Comisión mediador: 1 BBC (1%)
+   Comisión minería inicial: 0.1 BBC (0.1%)
+   Comisiones finales: 0.2 BBC (0.1% × 2)
+   Total a pagar: 101.3 BBC
+   ```
+
+2. **Confirmaciones**
+   ```
+   Vendedor: Acepta participación
+   Vendedor: Confirma envío + tracking
+   Comprador: Confirma recepción
+   ```
+
+3. **Distribución Final**
+   ```
+   Vendedor recibe: 100 BBC
+   Mediador recibe: 1 BBC
+   Mineros reciben: 0.1 BBC + 0.1 BBC + 0.1 BBC
+   ```
+
+#### 🛠️ Implementación Técnica
+
+```python
+class SecureEscrowContract:
+    def __init__(self):
+        self.MEDIATOR_FEE = 0.01        # 1% para mediador
+        self.INITIAL_MINING_FEE = 0.001  # 0.1% minería inicial
+        self.RELEASE_MINING_FEE = 0.001  # 0.1% por liberación
+```
+
+#### 🔍 Verificación de Transacciones
+
+1. **Transacciones del Contrato**
+   - Identificadas por type: 'contract_transfer'
+   - Firma especial: 'VALID'
+   - No requieren llave pública
+
+2. **Verificación en Bloque**
+   ```python
+   if transaction.get('type') == 'contract_transfer':
+       # Verificar remitente es el contrato
+       # Verificar destinatario válido
+       # Verificar firma especial
+   ```
+
+#### ⚠️ Manejo de Disputas
+
+- Sistema de timeouts para protección
+- Reembolso automático si no hay confirmación
+- Mediador puede intervenir en disputas
+- Periodo de resolución definido en bloques
+
+#### 🎯 Beneficios
+
+1. **Seguridad**
+   - Fondos bloqueados hasta confirmación
+   - Verificación en múltiples etapas
+   - Sistema de comisiones transparente
+
+2. **Transparencia**
+   - Estados claros y definidos
+   - Comisiones conocidas de antemano
+   - Transacciones verificables en la blockchain
+
+3. **Automatización**
+   - Liberación automática de fondos
+   - Manejo de timeouts
+   - Procesamiento de comisiones
+
 ## 📚 Tecnologías Utilizadas
 
 ### Backend
