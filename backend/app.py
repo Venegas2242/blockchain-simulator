@@ -8,6 +8,7 @@ import re
 import hashlib
 import json
 from time import time
+from wallet_generator import WalletGenerator  # Añadir esta importación
 
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
@@ -15,9 +16,14 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 import base64
 
-
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:3000"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 blockchain = Blockchain()
 
 blockchain.public_keys = {}
@@ -27,53 +33,22 @@ def clean_public_key(key):
 
 @app.route('/generate_wallet', methods=['GET'])
 def generate_wallet():
-    print("\n=== INICIO DE GENERACIÓN DE WALLET ===")
-    password = "1234"
-    
-    # 1. Generación de par de llaves usando ECDSA con curva SECP256k1
-    print("1. Generando par de llaves usando ECDSA (Elliptic Curve Digital Signature Algorithm)")
-    print("   Usando la curva SECP256k1 (la misma que usa Bitcoin)")
-    sk = SigningKey.generate(curve=SECP256k1)
-    vk = sk.get_verifying_key()
-    
-    # 2. Convertir llaves a formato hexadecimal
-    print("\n2. Convirtiendo llaves a formato hexadecimal")
-    private_key = binascii.hexlify(sk.to_string()).decode('ascii')
-    public_key = binascii.hexlify(vk.to_string()).decode('ascii')
-    print(f"   Llave privada (primeros 32 chars): {private_key[:32]}...")
-    print(f"   Llave pública (primeros 32 chars): {public_key[:32]}...")
-    
-    # 3. Cifrar llave privada usando AES y PBKDF2
-    print("\n3. Cifrando llave privada:")
-    print("   - Usando PBKDF2 (Password-Based Key Derivation Function 2)")
-    print("   - AES en modo CBC para el cifrado")
-    print("   - Generando salt aleatorio de 16 bytes")
-    encrypted = encrypt_private_key(private_key, password)
-    
-    # 4. Generar dirección usando RIPEMD160
-    print("\n4. Generando dirección usando algoritmo RIPEMD160:")
-    print("   a) Convertir llave pública a bytes")
-    print("   b) Calcular SHA256 de la llave pública")
-    print("   c) Calcular RIPEMD160 del resultado de SHA256")
-    address = generate_address_from_public_key(public_key)
-    print(f"   Dirección generada: {address}")
-
-    # 5. Inicializar balance y almacenar llave pública
-    print("\n5. Inicializando wallet en la blockchain:")
-    if not hasattr(blockchain, 'public_keys'):
-        blockchain.public_keys = {}
-    
-    blockchain.public_keys[address] = public_key
-    blockchain.balances[address] = 10  # Balance inicial
-    print(f"   Balance inicial establecido: {blockchain.balances[address]} BBC")
-    print("=== FIN DE GENERACIÓN DE WALLET ===\n")
-
-    return jsonify({
-        'private_key': private_key,
-        'public_key': public_key,
-        'encrypted_key': encrypted,
-        'address': address
-    }), 200
+    try:
+        print("Iniciando generación de wallet...")
+        wallet_gen = WalletGenerator()
+        wallet_data = wallet_gen.generate_wallet()
+        
+        print(f"Wallet generada exitosamente: {wallet_data['address']}")
+        
+        # Almacenar la clave pública y establecer balance inicial
+        blockchain.public_keys[wallet_data['address']] = wallet_data['public_key']
+        blockchain.balances[wallet_data['address']] = 10
+        
+        return jsonify(wallet_data), 200
+    except Exception as e:
+        print(f"Error en la ruta generate_wallet: {str(e)}")
+        traceback.print_exc()  # Imprime el stack trace completo
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/mine', methods=['POST'])
 def mine():
@@ -189,15 +164,14 @@ def get_mempool():
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
-    if not blockchain.validate_chain():                                  # Nuevo Ver
-        return jsonify({'message': 'The blockchain is invalid'}), 400    # Nuevo Ver
+    if not blockchain.validate_chain():
+        return jsonify({'message': 'The blockchain is invalid'}), 400
     response = {
         'chain': blockchain.chain,
         'length': len(blockchain.chain),
     }
     return jsonify(response), 200
 
-    
 @app.route('/generate_address', methods=['POST'])
 def generate_address():
     values = request.get_json()
@@ -210,10 +184,20 @@ def generate_address():
     return jsonify({'address': address}), 200
 
 def generate_address_from_public_key(public_key):
-    public_key_bytes = bytes.fromhex(public_key)
-    sha256_hash = hashlib.sha256(public_key_bytes).digest()
-    ripemd160_hash = hashlib.new('ripemd160', sha256_hash).hexdigest()
-    return ripemd160_hash
+    try:
+        # Convertir la clave pública de hex a bytes
+        public_key_bytes = bytes.fromhex(public_key)
+        
+        # 1. SHA256
+        sha256_hash = hashlib.sha256(public_key_bytes).digest()
+        
+        # 2. RIPEMD160
+        ripemd160_hash = hashlib.new('ripemd160', sha256_hash).hexdigest()
+        
+        return ripemd160_hash
+    except Exception as e:
+        print(f"Error en generate_address_from_public_key: {str(e)}")
+        raise
 
 def encrypt_private_key(private_key, password):
     print("\n--- INICIO DE CIFRADO DE LLAVE PRIVADA ---")
@@ -243,41 +227,66 @@ def encrypt_private_key(private_key, password):
 
 @app.route('/decrypt_private_key', methods=['POST'])
 def decrypt_private_key_route():
-    data = request.get_json()
-    encrypted_private_key = data.get('encrypted_private_key')
-    password = data.get('password')
-
-    if not encrypted_private_key or not password:
-        return jsonify({'error': 'Missing encrypted_private_key or password'}), 400
-
     try:
-        decrypted_private_key = decrypt_private_key(encrypted_private_key, password)
-        return jsonify({'decrypted_private_key': decrypted_private_key}), 200
+        data = request.get_json()
+        encrypted_private_key = data.get('encrypted_private_key')
+        password = data.get('password')
+
+        print(f"Recibida solicitud de descifrado")
+        print(f"Password recibida: {password}")
+        print(f"Encrypted key recibida: {encrypted_private_key}")
+
+        if not encrypted_private_key or not password:
+            return jsonify({'error': 'Missing encrypted_private_key or password'}), 400
+
+        try:
+            decrypted_private_key = decrypt_private_key(encrypted_private_key, password)
+            return jsonify({'decrypted_private_key': decrypted_private_key}), 200
+        except Exception as e:
+            print(f"Error específico en el descifrado: {str(e)}")
+            return jsonify({'error': f'Decryption failed: {str(e)}'}), 400
+
     except Exception as e:
-        return jsonify({'error': 'Decryption failed. Incorrect password or invalid data.'}), 400
+        print(f"Error general en la ruta: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 def decrypt_private_key(encrypted_private_key, password):
-    # Decode the base64 encrypted data
-    encrypted_data = base64.b64decode(encrypted_private_key)
+    try:
+        print(f"Intentando descifrar con password: {password}")
+        print(f"Encrypted key recibida: {encrypted_private_key}")
+        
+        # Decode the base64 encrypted data
+        encrypted_data = base64.b64decode(encrypted_private_key)
+        print(f"Longitud de datos cifrados: {len(encrypted_data)}")
 
-    # Extract salt, IV, and ciphertext
-    salt = encrypted_data[:16]
-    iv = encrypted_data[16:32]
-    ciphertext = encrypted_data[32:]
+        # Extract salt, IV, and ciphertext
+        salt = encrypted_data[:16]
+        iv = encrypted_data[16:32]
+        ciphertext = encrypted_data[32:]
+        
+        print(f"Salt (hex): {salt.hex()}")
+        print(f"IV (hex): {iv.hex()}")
 
-    # Derive the key from the password and salt
-    key = PBKDF2(password, salt, dkLen=32)
+        # Derive the key from the password and salt
+        key = PBKDF2(password, salt, dkLen=32)
+        print(f"Derived key (hex): {key.hex()}")
 
-    # Create an AES cipher object
-    cipher = AES.new(key, AES.MODE_CBC, iv)
+        # Create an AES cipher object
+        cipher = AES.new(key, AES.MODE_CBC, iv)
 
-    # Decrypt the data
-    decrypted_padded_data = cipher.decrypt(ciphertext)
-
-    # Unpad the decrypted data
-    decrypted_data = unpad(decrypted_padded_data, AES.block_size)
-
-    return decrypted_data.decode()
+        # Decrypt the data
+        decrypted_padded_data = cipher.decrypt(ciphertext)
+        
+        # Unpad the decrypted data
+        decrypted_data = unpad(decrypted_padded_data, AES.block_size)
+        result = decrypted_data.decode()
+        
+        print(f"Descifrado exitoso, resultado: {result}")
+        return result
+        
+    except Exception as e:
+        print(f"Error durante el descifrado: {str(e)}")
+        raise
 
 def sign_transaction(private_key, transaction):
     try:
@@ -315,21 +324,20 @@ def verify_block():
                  tx.get('type') == 'contract_transfer' and
                  tx['sender'] == transaction_data['sender'] and 
                  tx['recipient'] == transaction_data['recipient'] and 
-                 abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and  # Usar comparación aproximada
-                 (not tx.get('fee') or abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001)  # Comisión opcional
+                 abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and
+                 (not tx.get('fee') or abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001)
                 ),
                 None
             )
 
             if matching_transaction:
-                # Verificar que sea una transacción válida del contrato
                 if (transaction_data['sender'] == 'escrow_contract' and
                     matching_transaction.get('signature') == 'VALID'):
                     return jsonify({'message': 'Válido'}), 200
             
             return jsonify({'message': 'Error'}), 400
 
-        # Para transacciones normales, usar la verificación existente
+        # Para transacciones normales
         matching_transaction = next(
             (tx for tx in block['transactions'] if 
              tx['sender'] == transaction_data['sender'] and 
@@ -337,7 +345,7 @@ def verify_block():
              abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and
              abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001),
             None
-        )  
+        )
 
         if not matching_transaction:
             return jsonify({'message': 'Error'}), 400
@@ -367,7 +375,6 @@ def get_balance():
     return jsonify({'balance': balance}), 200
 
 def verify_signature(public_key, transaction, signature):
-    # Verifica la firma de una transacción usando la clave pública.
     vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
     transaction_string = json.dumps(transaction, sort_keys=True)
     try:
@@ -375,7 +382,8 @@ def verify_signature(public_key, transaction, signature):
         return True
     except:
         return False
-
+    
+    
 @app.route('/escrow/create', methods=['POST'])
 def create_escrow():
     try:
@@ -513,6 +521,6 @@ def get_agreement(agreement_id):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
-    
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
