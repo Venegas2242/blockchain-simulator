@@ -599,3 +599,65 @@ class Blockchain:
         """Crea un hash SHA-256 de un bloque"""
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
+    
+    def add_to_mempool(self, transaction):
+        """
+        Añade una transacción a la mempool verificando el balance disponible
+        """
+        if not self.verify_transaction(transaction):
+            raise ValueError("Invalid transaction")
+        
+        sender = transaction['sender']
+        total_amount = transaction['amount'] + transaction['fee']
+        
+        # Verificar balance disponible considerando transacciones pendientes
+        available_balance = self.get_available_balance(sender)
+        if available_balance < total_amount:
+            raise ValueError(f"Insufficient funds. Available: {available_balance}, Required: {total_amount}")
+
+        self.mempool.append(transaction)
+        return True
+
+    def get_available_balance(self, address):
+        """
+        Obtiene el balance disponible considerando tanto el balance actual
+        como las transacciones pendientes en mempool
+        """
+        # Obtener balance actual
+        current_balance = self.get_balance(address)
+        
+        # Calcular cantidad comprometida en mempool
+        pending_amount = 0
+        for tx in self.mempool:
+            if tx['sender'] == address:
+                pending_amount += tx['amount'] + tx['fee']
+        
+        # Balance disponible = balance actual - cantidad comprometida
+        available_balance = current_balance - pending_amount
+        print(f"\nCalculando balance disponible para {address}:")
+        print(f"Balance actual: {current_balance}")
+        print(f"Cantidad comprometida en mempool: {pending_amount}")
+        print(f"Balance disponible: {available_balance}")
+        
+        return available_balance
+
+    def verify_transaction(self, transaction):
+        # Si la transacción es de tipo 'coinbase' no necesita verificación
+        if transaction['sender'] == "0":
+            return True
+
+        # Verificar que la transacción tenga una firma
+        if 'signature' not in transaction:
+            return False
+
+        # Obtener la clave pública del remitente
+        public_key = self.public_keys.get(transaction['sender'])
+        if not public_key:
+            return False
+
+        # Hacer una copia de la transacción y eliminar el campo 'signature'
+        transaction_copy = transaction.copy()
+        signature = transaction_copy.pop('signature')
+
+        # Verificar la firma utilizando los datos de la transacción (sin la firma)
+        return verify_signature(public_key, transaction_copy, signature)

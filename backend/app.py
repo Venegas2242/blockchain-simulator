@@ -342,8 +342,8 @@ def verify_block():
             (tx for tx in block['transactions'] if 
              tx['sender'] == transaction_data['sender'] and 
              tx['recipient'] == transaction_data['recipient'] and 
-             abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and
-             abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001),
+             abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and  # Usar comparación aproximada
+             abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001),   # Usar comparación aproximada
             None
         )
 
