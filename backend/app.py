@@ -301,39 +301,59 @@ def verify_block():
         signature = data.get('signature')
         public_key = data.get('public_key')
 
+        # Convertir los valores numéricos
         transaction_data['amount'] = float(transaction_data['amount'])
         transaction_data['fee'] = float(transaction_data['fee'])
 
-        # Get the block from the specified index
+        # Obtener el bloque
         block = blockchain.chain[block_index]
 
-        # Find the specific transaction in the block
+        # Verificación especial para transacciones del contrato
+        if transaction_data.get('type') == 'contract_transfer':
+            matching_transaction = next(
+                (tx for tx in block['transactions'] if 
+                 tx.get('type') == 'contract_transfer' and
+                 tx['sender'] == transaction_data['sender'] and 
+                 tx['recipient'] == transaction_data['recipient'] and 
+                 abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and  # Usar comparación aproximada
+                 (not tx.get('fee') or abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001)  # Comisión opcional
+                ),
+                None
+            )
+
+            if matching_transaction:
+                # Verificar que sea una transacción válida del contrato
+                if (transaction_data['sender'] == 'escrow_contract' and
+                    matching_transaction.get('signature') == 'VALID'):
+                    return jsonify({'message': 'Válido'}), 200
+            
+            return jsonify({'message': 'Error'}), 400
+
+        # Para transacciones normales, usar la verificación existente
         matching_transaction = next(
             (tx for tx in block['transactions'] if 
              tx['sender'] == transaction_data['sender'] and 
              tx['recipient'] == transaction_data['recipient'] and 
-             tx['amount'] == transaction_data['amount'] and 
-             tx['fee'] == transaction_data['fee']),
+             abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and
+             abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001),
             None
         )  
 
         if not matching_transaction:
             return jsonify({'message': 'Error'}), 400
 
-        # Access the timestamp from the specific transaction in the block
         transaction_data['timestamp'] = matching_transaction['timestamp']
-
-        # Create a copy of the transaction without the signature to verify it
         transaction_copy = transaction_data.copy()
         transaction_copy.pop('signature', None)
 
-        # Verify the signature using the provided public key
         is_valid = verify_signature(public_key, transaction_copy, signature)
         if is_valid:
             return jsonify({'message': 'Válido'}), 200
         else:
             return jsonify({'message': 'Error'}), 400
+
     except Exception as e:
+        print(f"Error en verify_block: {str(e)}")
         return jsonify({'message': 'Error'}), 400
 
 @app.route('/balance', methods=['GET'])
@@ -356,5 +376,143 @@ def verify_signature(public_key, transaction, signature):
     except:
         return False
 
+@app.route('/escrow/create', methods=['POST'])
+def create_escrow():
+    try:
+        values = request.get_json()
+        required = ['buyer', 'seller', 'amount', 'description', 'privateKey']
+        if not all(k in values for k in required):
+            return jsonify({'error': 'Missing values'}), 400
+
+        # Generar ID único para el acuerdo
+        agreement_id = hashlib.sha256(
+            f"{values['buyer']}{values['seller']}{time()}".encode()
+        ).hexdigest()
+
+        # Crear el acuerdo y la transacción de fondos
+        blockchain.escrow_contract.create_agreement(
+            agreement_id=agreement_id,
+            buyer=values['buyer'],
+            seller=values['seller'],
+            amount=float(values['amount']),
+            description=values['description'],
+            buyer_private_key=values['privateKey']
+        )
+
+        return jsonify({
+            'message': 'Escrow agreement created and funds transfer transaction added to mempool',
+            'agreement_id': agreement_id
+        }), 201
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/escrow/confirm-shipment', methods=['POST'])
+def confirm_shipment():
+    try:
+        values = request.get_json()
+        required = ['agreement_id', 'seller', 'tracking_info']
+        if not all(k in values for k in required):
+            return jsonify({'error': 'Missing values'}), 400
+
+        # Actualizar el estado directamente
+        success = blockchain.escrow_contract.confirm_shipment(
+            agreement_id=values['agreement_id'],
+            seller=values['seller'],
+            tracking_info=values['tracking_info']
+        )
+
+        if success:
+            return jsonify({'message': 'Shipment confirmed', 'status': 'SHIPPED'}), 200
+        else:
+            return jsonify({'error': 'Failed to confirm shipment'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    
+@app.route('/escrow/confirm-seller', methods=['POST'])
+def confirm_seller():
+    try:
+        values = request.get_json()
+        required = ['agreement_id', 'seller']
+        if not all(k in values for k in required):
+            return jsonify({'error': 'Missing values'}), 400
+
+        blockchain.escrow_contract.confirm_seller_participation(
+            agreement_id=values['agreement_id'],
+            seller=values['seller']
+        )
+
+        return jsonify({'message': 'Seller participation confirmed'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/escrow/confirm-delivery', methods=['POST'])
+def confirm_delivery():
+    try:
+        values = request.get_json()
+        required = ['agreement_id', 'buyer']
+        if not all(k in values for k in required):
+            return jsonify({'error': 'Missing values'}), 400
+
+        # Confirmar entrega y crear transacciones de pago
+        blockchain.escrow_contract.confirm_delivery(
+            agreement_id=values['agreement_id'],
+            buyer=values['buyer']
+        )
+
+        return jsonify({'message': 'Delivery confirmed and payment transactions added to mempool'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/escrow/open-dispute', methods=['POST'])
+def open_dispute():
+    try:
+        values = request.get_json()
+        required = ['agreement_id', 'party', 'reason']
+        if not all(k in values for k in required):
+            return jsonify({'error': 'Missing values'}), 400
+
+        blockchain.escrow_contract.open_dispute(
+            agreement_id=values['agreement_id'],
+            party=values['party'],
+            reason=values['reason']
+        )
+
+        return jsonify({'message': 'Dispute opened'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/escrow/agreements/<wallet_address>', methods=['GET'])
+def get_agreements(wallet_address):
+    """Obtiene todos los acuerdos relacionados con una dirección"""
+    try:
+        agreements = []
+        for agreement_id, agreement in blockchain.escrow_contract.state['agreements'].items():
+            if agreement['buyer'] == wallet_address or agreement['seller'] == wallet_address:
+                agreement_copy = agreement.copy()
+                agreement_copy['id'] = agreement_id
+                agreements.append(agreement_copy)
+
+        return jsonify({'agreements': agreements}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/escrow/agreement/<agreement_id>', methods=['GET'])
+def get_agreement(agreement_id):
+    try:
+        agreement = blockchain.escrow_contract.get_agreement(agreement_id)
+        if not agreement:
+            return jsonify({'error': 'Agreement not found'}), 404
+
+        return jsonify(agreement), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

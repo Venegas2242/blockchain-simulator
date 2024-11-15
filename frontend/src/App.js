@@ -5,6 +5,7 @@ import Transaction from './components/Transaction';
 import Blockchain from './components/Blockchain';
 import VerifyBlock from './components/VerifyBlock';
 import Mempool from './components/Mempool';
+import Escrow from './components/Escrow'; 
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -148,11 +149,42 @@ function App() {
       <main className="main-content">
         {error && <div className="error">{error}</div>}
         <div className="tab-container">
-          <button className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} onClick={() => setActiveTab('wallet')}>Billetera</button>
-          <button className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} onClick={() => setActiveTab('transaction')}>Transacción</button>
-          <button className={`tab ${activeTab === 'mempool' ? 'active' : ''}`} onClick={() => setActiveTab('mempool')}>Mempool</button>
-          <button className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} onClick={() => setActiveTab('blockchain')}>Blockchain</button>
-          <button className={`tab ${activeTab === 'verify' ? 'active' : ''}`} onClick={() => setActiveTab('verify')}>Verificar</button>
+          <button 
+            className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('wallet')}
+          >
+            Billetera
+          </button>
+          <button 
+            className={`tab ${activeTab === 'transaction' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('transaction')}
+          >
+            Transacción
+          </button>
+          <button 
+            className={`tab ${activeTab === 'mempool' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('mempool')}
+          >
+            Mempool
+          </button>
+          <button 
+            className={`tab ${activeTab === 'blockchain' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('blockchain')}
+          >
+            Blockchain
+          </button>
+          <button 
+            className={`tab ${activeTab === 'verify' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('verify')}
+          >
+            Verificar
+          </button>
+          <button 
+            className={`tab ${activeTab === 'escrow' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('escrow')}
+          >
+            Smart Contract
+          </button>
         </div>
         
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
@@ -182,6 +214,16 @@ function App() {
         <div className={`tab-content ${activeTab === 'verify' ? 'active' : ''}`}>
           <VerifyBlock onVerifyResult={handleVerifyBlock} />
           {verifyResult && <div className="verify-result">{verifyResult}</div>}
+        </div>
+
+        <div className={`tab-content ${activeTab === 'escrow' ? 'active' : ''}`}>
+          <Escrow 
+            wallet={wallet} 
+            onError={setError}
+            onBalanceUpdate={() => {
+              if (wallet?.address) fetchBalance(wallet.address);
+            }}
+          />
         </div>
       </main>
     </div>

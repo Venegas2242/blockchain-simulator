@@ -13,6 +13,7 @@ const VerifyBlock = ({ onVerifyBlock }) => {
   const [verificationResult, setVerificationResult] = useState('');
   const [blockList, setBlockList] = useState([]);
   const [amount, setAmount] = useState('');
+  const [isContractTransaction, setIsContractTransaction] = useState(false);
 
   const clearForm = () => {
     setBlockIndex('');
@@ -23,6 +24,7 @@ const VerifyBlock = ({ onVerifyBlock }) => {
     setPublicKey('');
     setAmount('');
     setVerificationResult('');
+    setIsContractTransaction(false);
   };
 
   useEffect(() => {
@@ -44,47 +46,58 @@ const VerifyBlock = ({ onVerifyBlock }) => {
   }, []);
 
   const handleVerifyBlock = async () => {
-    if (blockIndex === '' || sender === '' || recipient === '' || amount === '' || fee === '' || signature === '' || publicKey === '') {
-      alert('Por favor, complete todos los campos.');
-      return;
+    // Validación diferente según el tipo de transacción
+    if (isContractTransaction) {
+        // Para transacciones del contrato, solo validar campos necesarios
+        if (blockIndex === '' || sender === '' || recipient === '' || amount === '' || fee === '') {
+            alert('Por favor, complete todos los campos requeridos.');
+            return;
+        }
+    } else {
+        // Para transacciones normales, validar todos los campos
+        if (blockIndex === '' || sender === '' || recipient === '' || amount === '' || fee === '' || signature === '' || publicKey === '') {
+            alert('Por favor, complete todos los campos.');
+            return;
+        }
     }
     
     try {
-      const indexToVerify = parseInt(blockIndex, 10) - 1;
-      
-      const transaction = {
-        sender,
-        recipient,
-        amount: amount,
-        fee: fee,
-      };
-      
-      const response = await fetch(`${API_URL}/verify_block`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          block_index: indexToVerify, 
-          transaction, 
-          signature,
-          public_key: publicKey 
-        }),
-      });
-      
-      const data = await response.json();
-      setVerificationResult(data.message);
-      if (typeof onVerifyBlock === 'function') {
-        onVerifyBlock(data.message);
-      }
+        const indexToVerify = parseInt(blockIndex, 10) - 1;
+        
+        const transaction = {
+            sender,
+            recipient,
+            amount: amount,
+            fee: fee,
+            type: isContractTransaction ? 'contract_transfer' : 'normal'
+        };
+        
+        const response = await fetch(`${API_URL}/verify_block`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                block_index: indexToVerify, 
+                transaction, 
+                signature: isContractTransaction ? 'VALID' : signature,
+                public_key: isContractTransaction ? '' : publicKey 
+            }),
+        });
+        
+        const data = await response.json();
+        setVerificationResult(data.message);
+        if (typeof onVerifyBlock === 'function') {
+            onVerifyBlock(data.message);
+        }
     } catch (error) {
-      setVerificationResult('Error');
-      if (typeof onVerifyBlock === 'function') {
-        onVerifyBlock('Error');
-      }
+        setVerificationResult('Error');
+        if (typeof onVerifyBlock === 'function') {
+            onVerifyBlock('Error');
+        }
     }
   };
-  
+
   return (
     <div className="verify-block">
       <div className="verify-header">
@@ -106,14 +119,26 @@ const VerifyBlock = ({ onVerifyBlock }) => {
         type="text"
         placeholder="Dirección del Remitente"
         value={sender}
-        onChange={(e) => setSender(e.target.value)}
+        onChange={(e) => {
+          setSender(e.target.value);
+          // Activar modo contrato si el remitente es escrow_contract
+          if (e.target.value === 'escrow_contract') {
+            setIsContractTransaction(true);
+            setSignature('VALID');
+          } else {
+            setIsContractTransaction(false);
+            setSignature('');
+          }
+        }}
       />
-      <input
-        type="text"
-        placeholder="Llave Pública del Remitente"
-        value={publicKey}
-        onChange={(e) => setPublicKey(e.target.value)}
-      />
+      {!isContractTransaction && (
+        <input
+          type="text"
+          placeholder="Llave Pública del Remitente"
+          value={publicKey}
+          onChange={(e) => setPublicKey(e.target.value)}
+        />
+      )}
       <input
         type="text"
         placeholder="Dirección del Destinatario"
@@ -132,13 +157,28 @@ const VerifyBlock = ({ onVerifyBlock }) => {
         value={fee}
         onChange={(e) => setFee(e.target.value)}
       />
-      <input
-        type="text"
-        placeholder="Firma"
-        value={signature}
-        onChange={(e) => setSignature(e.target.value)}
-      />
-      <button onClick={handleVerifyBlock} className="verify-button">Verificar Bloque</button>
+      {!isContractTransaction ? (
+        <input
+          type="text"
+          placeholder="Firma"
+          value={signature}
+          onChange={(e) => setSignature(e.target.value)}
+        />
+      ) : (
+        <div className="contract-transaction-info">
+          <p className="contract-note">Transacción del Smart Contract</p>
+          <input
+            type="text"
+            value="VALID"
+            disabled
+            className="contract-signature"
+          />
+          <p className="helper-text">Las transacciones del contrato usan una firma especial</p>
+        </div>
+      )}
+      <button onClick={handleVerifyBlock} className="verify-button">
+        Verificar Bloque
+      </button>
       {verificationResult && (
         <div className={`result-container ${verificationResult === 'Error' ? 'error' : 'valid'}`}>
           {verificationResult}

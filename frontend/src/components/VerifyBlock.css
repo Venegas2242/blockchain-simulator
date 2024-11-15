@@ -68,6 +68,44 @@
   font-weight: bold;
 }
 
+.contract-transaction-info {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin: 10px 0;
+  border: 1px solid #e9ecef;
+}
+
+.contract-note {
+  color: #0d6efd;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.contract-signature {
+  background-color: #e9ecef;
+  border: 1px solid #ced4da;
+  padding: 8px;
+  width: 100%;
+  border-radius: 4px;
+  color: #495057;
+  cursor: not-allowed;
+}
+
+.helper-text {
+  color: #6c757d;
+  font-size: 0.875rem;
+  margin-top: 5px;
+}
+
+.result-container {
+  text-align: center;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
 .result-container.error {
   background-color: #f44336;
   color: white;
