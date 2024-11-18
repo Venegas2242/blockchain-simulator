@@ -1,14 +1,13 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from blockchain import Blockchain
-from ecdsa import SigningKey, VerifyingKey, SECP256k1
-import binascii
 import traceback
 import re
 import hashlib
 import json
 from time import time
-from wallet_generator import WalletGenerator  # Añadir esta importación
+from wallet_generator import WalletGenerator
+from crypto_utils import verify_signature, sign_transaction
 
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
@@ -52,7 +51,7 @@ def generate_wallet():
 
 @app.route('/mine', methods=['POST'])
 def mine():
-    print("\n=== INICIO DE MINADO ===")
+    print("\n===== INICIO DE MINADO =====")
     try:
         values = request.get_json()
         miner_address = clean_public_key(values.get('miner_address'))
@@ -83,7 +82,7 @@ def mine():
         print(f"   Transacciones: {len(block['transactions'])}")
         reward = next(tx['amount'] for tx in block['transactions'] if tx['sender'] == "0")
         print(f"   Recompensa total: {reward} BBC")
-        print("=== FIN DE MINADO ===\n")
+        print("===== FIN DE MINADO =====\n")
 
         return jsonify({
             'message': "New Block Forged",
@@ -100,7 +99,7 @@ def mine():
 
 @app.route('/transactions/new', methods=['POST'])
 def new_transaction():
-    print("\n=== INICIO DE NUEVA TRANSACCIÓN ===")
+    print("\n====== INICIO DE NUEVA TRANSACCIÓN ======\n")
     try:
         values = request.get_json()
         required = ['sender', 'recipient', 'amount', 'fee', 'privateKey']
@@ -278,22 +277,9 @@ def decrypt_private_key(encrypted_private_key, password):
         print(f"Error durante el descifrado: {str(e)}")
         raise
 
-def sign_transaction(private_key, transaction):
-    try:
-        # Crear la clave de firma a partir de la clave privada
-        sk = SigningKey.from_string(bytes.fromhex(private_key), curve=SECP256k1)
-        transaction_string = json.dumps(transaction, sort_keys=True)
-        
-        # Generar la firma
-        signature = sk.sign(transaction_string.encode())
-        return signature
-    except Exception as e:
-        print(f"Error al firmar la transacción: {str(e)}")
-        raise
-
 @app.route('/verify_block', methods=['POST'])
 def verify_block():
-    print("\n=== INICIO DE VERIFICACIÓN DE BLOQUE ===")
+    print("\n====== INICIO DE VERIFICACIÓN DE BLOQUE ======")
     try:
         data = request.get_json()
         block_index = data.get('block_index')
@@ -382,10 +368,10 @@ def verify_block():
         print(f"   Resultado de verificación: {'Válido' if is_valid else 'Inválido'}")
 
         if is_valid:
-            print("\n=== FIN DE VERIFICACIÓN - ÉXITO ===")
+            print("\n====== FIN DE VERIFICACIÓN - ÉXITO ======")
             return jsonify({'message': 'Válido'}), 200
         else:
-            print("\n=== FIN DE VERIFICACIÓN - FALLO ===")
+            print("\n====== FIN DE VERIFICACIÓN - FALLO ======")
             return jsonify({'message': 'Error'}), 400
 
     except Exception as e:
@@ -401,32 +387,7 @@ def get_balance():
     
     print(f"Retrieving balance for {address}")
     balance = blockchain.get_balance(clean_public_key(address))
-    return jsonify({'balance': balance}), 200
-
-def verify_signature(public_key, transaction, signature):
-    print("\n=== INICIO DE VERIFICACIÓN DE FIRMA ===")
-    try:
-        # Crear la clave de verificación
-        print("1. Creando clave de verificación...")
-        vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
-        
-        # Preparar los datos para verificar
-        print("2. Preparando datos para verificar...")
-        transaction_string = json.dumps(transaction, sort_keys=True)
-        print(f"   Datos serializados: {transaction_string}")
-        
-        # Verificar la firma
-        print("3. Verificando firma...")
-        result = vk.verify(bytes.fromhex(signature), transaction_string.encode())
-        print(f"   Resultado: {'Válido' if result else 'Inválido'}")
-        
-        print("=== FIN DE VERIFICACIÓN DE FIRMA ===")
-        return True
-    except Exception as e:
-        print(f"ERROR en verify_signature: {str(e)}")
-        print(traceback.format_exc())
-        return False
-    
+    return jsonify({'balance': balance}), 200    
     
 @app.route('/escrow/create', methods=['POST'])
 def create_escrow():
@@ -520,20 +481,20 @@ def confirm_delivery():
         return jsonify({'error': str(e)}), 400
 
 @app.route('/escrow/open-dispute', methods=['POST'])
+@app.route('/escrow/open-dispute', methods=['POST'])
 def open_dispute():
     try:
         values = request.get_json()
-        required = ['agreement_id', 'party', 'reason']
+        required = ['agreement_id', 'buyer', 'reason']  # Cambiado 'party' por 'buyer'
         if not all(k in values for k in required):
             return jsonify({'error': 'Missing values'}), 400
 
         blockchain.escrow_contract.open_dispute(
             agreement_id=values['agreement_id'],
-            party=values['party'],
-            reason=values['reason']
+            buyer=values['buyer']  # Cambiado de 'party' a 'buyer'
         )
 
-        return jsonify({'message': 'Dispute opened'}), 200
+        return jsonify({'message': 'Disputa abierta y reembolso iniciado'}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400

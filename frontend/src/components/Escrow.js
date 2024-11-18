@@ -159,16 +159,17 @@ const Escrow = ({ wallet, onError, onBalanceUpdate }) => {
                 },
                 body: JSON.stringify({
                     agreement_id: agreementId,
-                    party: wallet.address,
+                    buyer: wallet.address,  // Cambiado de 'party' a 'buyer'
                     reason: disputeReason
                 }),
             });
-
+    
             const data = await response.json();
             if (response.ok) {
-                alert('Disputa abierta exitosamente!');
+                alert('Disputa abierta y reembolso iniciado exitosamente!');  // Mensaje actualizado
                 setDisputeReason('');
                 fetchAgreements();
+                if (onBalanceUpdate) onBalanceUpdate();  // Actualizar balance después del reembolso
             } else {
                 if (onError) onError(data.error);
             }
@@ -288,15 +289,19 @@ const Escrow = ({ wallet, onError, onBalanceUpdate }) => {
                                     </button>
                                 )}
 
-                                {['SHIPPED', 'AWAITING_SHIPMENT'].includes(agreement.status) && (
+                                {agreement.buyer === wallet.address && 
+                                ['PENDING_SELLER_CONFIRMATION', 'SHIPPED', 'AWAITING_SHIPMENT'].includes(agreement.status) && (
                                     <div>
                                         <textarea
                                             placeholder="Razón de la disputa"
                                             value={disputeReason}
                                             onChange={e => setDisputeReason(e.target.value)}
                                         />
-                                        <button onClick={() => handleOpenDispute(agreement.id)}>
-                                            Abrir Disputa
+                                        <button 
+                                            onClick={() => handleOpenDispute(agreement.id)}
+                                            className="dispute-button"  // Opcional: para darle un estilo distintivo
+                                        >
+                                            Solicitar Reembolso
                                         </button>
                                     </div>
                                 )}

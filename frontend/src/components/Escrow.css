@@ -67,3 +67,17 @@
     padding: 15px;
     background-color: #f9f9f9;
   }
+
+  .dispute-button {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.dispute-button:hover {
+    background-color: #cc0000;
+}

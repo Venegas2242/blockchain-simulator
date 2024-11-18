@@ -290,15 +290,23 @@ class WalletGenerator:
         checksum = hashlib.sha256(entropy).digest()
         checksum_int = int.from_bytes(checksum, 'big')
         
+        print(f"Bits de entropía: {ent}")
+        print(f"Bits de checksum: {checksum_bits}")
+        print(f"Checksum completo: {checksum.hex()}")
+        print(f"Primeros {checksum_bits} bits usados: {bin(checksum_int >> (256 - checksum_bits))[2:].zfill(checksum_bits)}")
+        
         # 2. Combinar entropía con checksum
         total_bits = ent + checksum_bits
         entropy_int = int.from_bytes(entropy, 'big')
         combined = (entropy_int << checksum_bits) | (checksum_int >> (256 - checksum_bits))
         
+        print(f"\nEntropía + checksum (bits): {bin(combined)[2:].zfill(total_bits)}")
+        
         # 3. Dividir en grupos de 11 bits y convertir a palabras
         words = []
         for i in range(total_bits // 11):
             word_index = (combined >> (total_bits - (i + 1) * 11)) & ((1 << 11) - 1)
+            print(f"Grupo {i+1} (11 bits): {bin(word_index)[2:].zfill(11)} = {word_index} = {self.BIP39_WORDS[word_index]}")
             words.append(self.BIP39_WORDS[word_index])
         
         self.mnemonic = ' '.join(words)
@@ -324,52 +332,85 @@ class WalletGenerator:
         Deriva la clave maestra (master key) según BIP32
         """
         # HMAC-SHA512 con la clave "Bitcoin seed"
-        hmac_obj = hmac.new(b"Bitcoin seed", seed, hashlib.sha512)
+        key = b"Bitcoin seed"
+        print(f"\nHMAC-SHA512:")
+        print(f"Key: {key.hex()}")
+        print(f"Message (seed): {seed.hex()}")
+        
+        hmac_obj = hmac.new(key, seed, hashlib.sha512)
         result = hmac_obj.digest()
+        print(f"HMAC result (64 bytes): {result.hex()}")
         
         # Los primeros 32 bytes son la clave privada
         self.private_key = result[:32]
         # Los siguientes 32 bytes son el chain code
         chain_code = result[32:]
         
+        print(f"\nSeparación del resultado:")
+        print(f"Master private key (32 bytes): {self.private_key.hex()}")
+        print(f"Chain code (32 bytes): {chain_code.hex()}")
+        
         return self.private_key, chain_code
 
     def generate_wallet(self) -> dict:
         try:
-            print("Iniciando generación de wallet...")
-            # 1. Generar entropía
+            print("\n=== GENERANDO NUEVA WALLET ===")
+            print("\n1. Generando entropía inicial (128 bits)")
             entropy = self.generate_entropy()
-            print("Entropía generada")
+            print(f"Entropía (hex): {entropy.hex()}")
             
-            # 2. Convertir a frase mnemotécnica
+            print("\n2. Convirtiendo entropía a frase mnemónica")
+            print("- Calculando checksum SHA256 de la entropía")
+            print("- Tomando primeros 4 bits del checksum (ENT/32)")
+            print("- Combinando entropía + checksum")
+            print("- Dividiendo en grupos de 11 bits")
             mnemonic = self.entropy_to_mnemonic(entropy)
-            print("Frase mnemotécnica generada")
+            print(f"Frase mnemónica (12 palabras): {mnemonic}")
             
-            # 3. Generar semilla
+            print("\n3. Derivando semilla desde mnemónico")
+            print("- Aplicando PBKDF2-HMAC-SHA512")
+            print("- 2048 iteraciones")
+            print("- Salt: 'mnemonic' + passphrase")
             seed = self.mnemonic_to_seed(mnemonic)
-            print("Semilla generada")
+            print(f"Semilla (64 bytes hex): {seed.hex()}")
             
-            # 4. Derivar clave privada maestra
-            private_key, _ = self.derive_master_key(seed)
-            print("Clave privada derivada")
+            print("\n4. Derivando clave maestra (BIP32)")
+            print("- HMAC-SHA512(key='Bitcoin seed', data=seed)")
+            print("- Dividiendo resultado en clave privada (32 bytes) y chain code (32 bytes)")
+            private_key, chain_code = self.derive_master_key(seed)
+            print(f"Clave privada maestra (32 bytes hex): {private_key.hex()}")
+            print(f"Chain code (32 bytes hex): {chain_code.hex()}")
             
-            # 5. Generar clave pública usando ECDSA (usando librería)
+            print("\n5. Generando clave pública (SECP256k1)")
+            print("- Multiplicación punto curva elíptica (G * private_key)")
             sk = SigningKey.from_string(private_key, curve=SECP256k1)
             vk = sk.get_verifying_key()
             public_key = binascii.hexlify(vk.to_string()).decode('ascii')
-            print("Clave pública generada")
+            print(f"Clave pública sin comprimir (64 bytes hex): {public_key}")
             
-            # 6. Generar dirección
+            print("\n6. Generando dirección")
+            print("- SHA256 de la clave pública")
             public_key_bytes = bytes.fromhex(public_key)
             sha256_hash = hashlib.sha256(public_key_bytes).digest()
+            print(f"Hash SHA256: {sha256_hash.hex()}")
+            
+            print("- RIPEMD160 del resultado SHA256")
             ripemd160_hash = hashlib.new('ripemd160', sha256_hash).hexdigest()
-            print("Dirección generada")
+            print(f"Dirección final (RIPEMD160): {ripemd160_hash}")
 
-            # 7. Cifrar la llave privada
+            print("\n7. Cifrando clave privada")
+            print("- Usando AES-256-CBC")
+            print("- Generando salt aleatorio de 16 bytes")
+            print("- Derivando clave de cifrado con PBKDF2")
             private_key_hex = binascii.hexlify(private_key).decode('ascii')
             from app import encrypt_private_key
             encrypted_private_key = encrypt_private_key(private_key_hex, "1234")
-            print("Llave privada cifrada")
+            print(f"Clave privada cifrada (base64): {encrypted_private_key[:64]}...")
+            
+            print("\n=== WALLET GENERADA EXITOSAMENTE ===")
+            print(f"Dirección: {ripemd160_hash}")
+            print(f"Longitud clave privada: {len(private_key_hex)} bytes")
+            print(f"Longitud clave pública: {len(public_key)} bytes")
             
             return {
                 'mnemonic': mnemonic,
@@ -379,5 +420,5 @@ class WalletGenerator:
                 'address': ripemd160_hash
             }
         except Exception as e:
-            print(f"Error en generate_wallet: {str(e)}")
+            print(f"\nERROR en generate_wallet: {str(e)}")
             raise
