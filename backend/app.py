@@ -114,35 +114,25 @@ def new_transaction():
         amount = float(values['amount'])
         fee = float(values['fee'])
         private_key = values['privateKey']
-        
-        print(f"   De: {sender[:8]}...")
-        print(f"   Para: {recipient[:8]}...")
-        print(f"   Cantidad: {amount} BBC")
-        print(f"   Comisión: {fee} BBC")
 
         # 2. Crear objeto de transacción
-        print("\n2. Creando objeto de transacción")
         transaction = {
             'sender': sender,
             'recipient': recipient,
             'amount': amount,
             'fee': fee,
-            'timestamp': time()
+            'timestamp': time(),
+            'type': 'normal'  # Todas las transacciones nuevas son de tipo normal
         }
-        print("   Transacción creada con timestamp:", transaction['timestamp'])
 
         # 3. Firmar la transacción
-        print("\n3. Firmando transacción:")
-        print("   a) Serializando transacción a JSON")
-        print("   b) Generando firma usando ECDSA con la llave privada")
+        print("2. Firmando transacción...")
         signature = sign_transaction(private_key, transaction)
         transaction['signature'] = signature.hex()
-        print(f"   Firma generada (primeros 32 chars): {transaction['signature'][:32]}...")
 
         # 4. Añadir a la mempool
-        print("\n4. Añadiendo transacción a la mempool")
+        print("3. Añadiendo a la mempool...")
         blockchain.add_to_mempool(transaction)
-        print("=== FIN DE NUEVA TRANSACCIÓN ===\n")
         
         return jsonify({'message': 'Transaction added to mempool'}), 201
 
@@ -303,6 +293,7 @@ def sign_transaction(private_key, transaction):
 
 @app.route('/verify_block', methods=['POST'])
 def verify_block():
+    print("\n=== INICIO DE VERIFICACIÓN DE BLOQUE ===")
     try:
         data = request.get_json()
         block_index = data.get('block_index')
@@ -310,58 +301,96 @@ def verify_block():
         signature = data.get('signature')
         public_key = data.get('public_key')
 
-        # Convertir los valores numéricos
+        print(f"1. Datos recibidos:")
+        print(f"   Índice del bloque: {block_index}")
+        print(f"   Transacción a verificar: {json.dumps(transaction_data, indent=2)}")
+        print(f"   Firma: {signature[:32]}..." if signature else "VALID")
+        print(f"   Llave pública: {public_key[:32]}..." if public_key else "N/A")
+
+        # Convertir valores numéricos
         transaction_data['amount'] = float(transaction_data['amount'])
         transaction_data['fee'] = float(transaction_data['fee'])
 
         # Obtener el bloque
         block = blockchain.chain[block_index]
+        print(f"\n2. Bloque obtenido: #{block['index']}")
+        print(f"   Total de transacciones en el bloque: {len(block['transactions'])}")
 
-        # Verificación especial para transacciones del contrato
-        if transaction_data.get('type') == 'contract_transfer':
+        # Determinar el tipo de transacción
+        is_escrow_contract = transaction_data.get('sender') == 'escrow_contract'
+        is_escrow_deposit = transaction_data.get('recipient') == 'escrow_contract'
+        
+        print("\n3. Buscando transacción coincidente...")
+        # Lógica especial para verificar transacciones relacionadas con escrow
+        if is_escrow_contract:
+            # Para transacciones desde el contrato
             matching_transaction = next(
                 (tx for tx in block['transactions'] if 
                  tx.get('type') == 'contract_transfer' and
+                 tx['sender'] == 'escrow_contract' and 
+                 tx['recipient'] == transaction_data['recipient'] and
+                 abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and
+                 (not tx.get('fee') or abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001) and
+                 tx.get('signature') == 'VALID'),
+                None
+            )
+            
+            if matching_transaction:
+                print("\n4. Transacción del contrato encontrada y válida")
+                return jsonify({'message': 'Válido'}), 200
+            else:
+                print("\n4. Transacción del contrato no encontrada o inválida")
+                return jsonify({'message': 'Error'}), 400
+
+        elif is_escrow_deposit:
+            # Para transacciones hacia el contrato
+            print("   Verificando depósito al escrow...")
+            matching_transaction = next(
+                (tx for tx in block['transactions'] if 
+                 tx['sender'] == transaction_data['sender'] and 
+                 tx['recipient'] == 'escrow_contract' and 
+                 abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and
+                 abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001),
+                None
+            )
+        else:
+            # Para transacciones normales
+            print("   Verificando transacción normal...")
+            matching_transaction = next(
+                (tx for tx in block['transactions'] if 
                  tx['sender'] == transaction_data['sender'] and 
                  tx['recipient'] == transaction_data['recipient'] and 
                  abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and
-                 (not tx.get('fee') or abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001)
-                ),
+                 abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001),
                 None
             )
 
-            if matching_transaction:
-                if (transaction_data['sender'] == 'escrow_contract' and
-                    matching_transaction.get('signature') == 'VALID'):
-                    return jsonify({'message': 'Válido'}), 200
-            
-            return jsonify({'message': 'Error'}), 400
-
-        # Para transacciones normales
-        matching_transaction = next(
-            (tx for tx in block['transactions'] if 
-             tx['sender'] == transaction_data['sender'] and 
-             tx['recipient'] == transaction_data['recipient'] and 
-             abs(float(tx['amount']) - transaction_data['amount']) < 0.00001 and  # Usar comparación aproximada
-             abs(float(tx.get('fee', 0)) - transaction_data['fee']) < 0.00001),   # Usar comparación aproximada
-            None
-        )
-
         if not matching_transaction:
+            print("\nERROR: No se encontró una transacción coincidente")
             return jsonify({'message': 'Error'}), 400
 
-        transaction_data['timestamp'] = matching_transaction['timestamp']
-        transaction_copy = transaction_data.copy()
-        transaction_copy.pop('signature', None)
+        print("\n4. Transacción encontrada:", json.dumps(matching_transaction, indent=2))
 
-        is_valid = verify_signature(public_key, transaction_copy, signature)
+        # Verificación de firma para transacciones normales y depósitos al escrow
+        transaction_data['timestamp'] = matching_transaction['timestamp']
+        transaction_data['type'] = matching_transaction.get('type', 'normal')
+
+        print("\n5. Verificando firma...")
+        print(f"   Datos a verificar: {json.dumps(transaction_data, indent=2)}")
+        
+        is_valid = verify_signature(public_key, transaction_data, signature)
+        print(f"   Resultado de verificación: {'Válido' if is_valid else 'Inválido'}")
+
         if is_valid:
+            print("\n=== FIN DE VERIFICACIÓN - ÉXITO ===")
             return jsonify({'message': 'Válido'}), 200
         else:
+            print("\n=== FIN DE VERIFICACIÓN - FALLO ===")
             return jsonify({'message': 'Error'}), 400
 
     except Exception as e:
-        print(f"Error en verify_block: {str(e)}")
+        print(f"\nERROR en verify_block: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({'message': 'Error'}), 400
 
 @app.route('/balance', methods=['GET'])
@@ -375,12 +404,27 @@ def get_balance():
     return jsonify({'balance': balance}), 200
 
 def verify_signature(public_key, transaction, signature):
-    vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
-    transaction_string = json.dumps(transaction, sort_keys=True)
+    print("\n=== INICIO DE VERIFICACIÓN DE FIRMA ===")
     try:
-        vk.verify(bytes.fromhex(signature), transaction_string.encode())
+        # Crear la clave de verificación
+        print("1. Creando clave de verificación...")
+        vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
+        
+        # Preparar los datos para verificar
+        print("2. Preparando datos para verificar...")
+        transaction_string = json.dumps(transaction, sort_keys=True)
+        print(f"   Datos serializados: {transaction_string}")
+        
+        # Verificar la firma
+        print("3. Verificando firma...")
+        result = vk.verify(bytes.fromhex(signature), transaction_string.encode())
+        print(f"   Resultado: {'Válido' if result else 'Inválido'}")
+        
+        print("=== FIN DE VERIFICACIÓN DE FIRMA ===")
         return True
-    except:
+    except Exception as e:
+        print(f"ERROR en verify_signature: {str(e)}")
+        print(traceback.format_exc())
         return False
     
     

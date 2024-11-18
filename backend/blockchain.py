@@ -55,10 +55,11 @@ class SecureEscrowContract:
         # Crear la transacción de transferencia de fondos
         transfer_transaction = {
             'sender': buyer,
-            'recipient': self.address,
+            'recipient': self.address,                       # self.address es 'escrow_contract'
             'amount': amount + mediator_fee + release_fees,  # Incluye fondos para comisiones futuras
             'fee': initial_mining_fee,                       # Comisión para el minero actual
-            'timestamp': time()
+            'timestamp': time(),
+            'type': 'escrow_deposit'  # Añadimos un tipo específico para depósitos de escrow
         }
 
         # Firmar la transacción
@@ -258,7 +259,7 @@ class Blockchain:
         self.escrow_contract = SecureEscrowContract(self)
         
         # Inicializar balance del contrato
-        self.balances[self.escrow_contract.address] = 0
+        self.balances[self.escrow_contract.address] = 1000
 
         # Crear bloque génesis
         genesis_block = {
@@ -441,19 +442,46 @@ class Blockchain:
 
     def process_transaction(self, transaction):
         """Procesa una transacción actualizando los balances"""
+        
+        print(f"\nProcesando transacción:")
+        print(f"De: {transaction['sender']}")
+        print(f"Para: {transaction['recipient']}")
+        print(f"Cantidad: {transaction['amount']} BBC")
+        print(f"Comisión: {transaction.get('fee', 0)} BBC")
+        print(f"Tipo: {transaction.get('type', 'normal')}")
+        
         if transaction.get('type') != 'coinbase':
             sender = transaction['sender']
             recipient = transaction['recipient']
             amount = transaction['amount']
             fee = transaction.get('fee', 0)
+            tx_type = transaction.get('type', 'normal')
+
+            
+            print(f"Balance del remitente antes: {self.get_balance(sender)} BBC")
+            print(f"Balance del destinatario antes: {self.get_balance(recipient)} BBC")
             
             # Verificar balance suficiente
             if self.get_balance(sender) < amount + fee:
                 raise ValueError(f"Balance insuficiente para {sender}")
             
             # Actualizar balances
-            self.balances[sender] = self.get_balance(sender) - (amount + fee)
-            self.balances[recipient] = self.get_balance(recipient) + amount
+            # Para transacciones de depósito al escrow, asegurarse de restar del balance del comprador
+            if tx_type == 'escrow_deposit':
+                print("Procesando depósito al escrow...")
+                # Restar fondos al comprador (incluyendo todas las comisiones)
+                self.balances[sender] = self.get_balance(sender) - (amount + fee)
+                # Añadir fondos al contrato
+                self.balances[recipient] = self.get_balance(recipient) + amount
+                print(f"Fondos restados del comprador: {amount + fee} BBC")
+            else:
+                # Procesamiento normal para otras transacciones
+                self.balances[sender] = self.get_balance(sender) - (amount + fee)
+                self.balances[recipient] = self.get_balance(recipient) + amount
+
+            
+            print(f"Balance del remitente después: {self.get_balance(sender)} BBC")
+            print(f"Balance del destinatario después: {self.get_balance(recipient)} BBC")
 
             # Si es una transacción al contrato de custodia, actualizar los fondos bloqueados
             if recipient == self.escrow_contract.address:
@@ -475,7 +503,6 @@ class Blockchain:
         """Mina un nuevo bloque"""
         try:
             print("\nIniciando proceso de minado...")
-            
             transactions = []
             total_fees = 0
             
@@ -499,7 +526,8 @@ class Blockchain:
                 
                 # Remover transacciones seleccionadas de mempool
                 for tx in selected_txs:
-                    self.mempool.remove(tx)
+                    if tx in self.mempool:
+                        self.mempool.remove(tx)
                 
                 transactions.extend(selected_txs)
 
@@ -529,16 +557,22 @@ class Blockchain:
             print("Calculando proof of work...")
             block['nonce'], block['hash'] = self.calculate_hash(block)
 
-            print("Procesando transacciones...")
-            for tx in transactions[1:]:  # Procesar todas excepto la coinbase
-                if tx.get('type') and tx['type'].startswith('escrow_'):
-                    print(f"Procesando transacción de escrow: {tx['type']}")
-                    self.escrow_contract.process_escrow_transaction(tx)
-                else:
-                    print("Procesando transacción normal")
+            print("\nProcesando transacciones en orden...")
+            print("1. Transacciones normales y depósitos al escrow")
+            # Primero procesar transacciones normales y depósitos al escrow
+            for tx in transactions[1:]:  # Saltar la coinbase
+                if tx.get('type') != 'contract_transfer':
+                    print(f"Procesando transacción tipo: {tx.get('type', 'normal')}")
                     self.process_transaction(tx)
 
-            print("Actualizando balance del minero...")
+            print("\n2. Transacciones del contrato")
+            # Luego procesar transacciones del contrato
+            for tx in transactions[1:]:
+                if tx.get('type') == 'contract_transfer':
+                    print("Procesando transacción del contrato")
+                    self.process_transaction(tx)
+
+            print("\nActualizando balance del minero...")
             self.balances[miner_address] = self.get_balance(miner_address) + total_reward
 
             print("Verificando bloque antes de añadirlo...")
@@ -612,6 +646,11 @@ class Blockchain:
         
         # Verificar balance disponible considerando transacciones pendientes
         available_balance = self.get_available_balance(sender)
+        print(f"\nVerificando balance para nueva transacción:")
+        print(f"Remitente: {sender}")
+        print(f"Balance disponible: {available_balance} BBC")
+        print(f"Cantidad total requerida: {total_amount} BBC")        
+        
         if available_balance < total_amount:
             raise ValueError(f"Insufficient funds. Available: {available_balance}, Required: {total_amount}")
 
