@@ -8,6 +8,7 @@ import json
 from time import time
 from wallet_generator import WalletGenerator
 from crypto_utils import verify_signature, sign_transaction
+import secrets
 
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
@@ -163,14 +164,42 @@ def full_chain():
 
 @app.route('/generate_address', methods=['POST'])
 def generate_address():
-    values = request.get_json()
-    if not values or 'public_key' not in values:
-        return jsonify({'message': 'Missing public_key'}), 400
+   """Genera una nueva dirección a partir de una clave pública existente"""
+   try:
+       values = request.get_json()
+       if not values or 'public_key' not in values:
+           return jsonify({'error': 'Missing public_key'}), 400
 
-    public_key = clean_public_key(values['public_key'])
-    address = generate_address_from_public_key(public_key)
-    
-    return jsonify({'address': address}), 200
+       public_key = values['public_key']
+       
+       # Genera una nueva dirección usando RIPEMD160(SHA256(public_key))
+       # pero con un nonce adicional para generar diferentes direcciones
+       nonce = secrets.token_bytes(4)  # 4 bytes de nonce aleatorio
+       public_key_bytes = bytes.fromhex(public_key)
+       combined = nonce + public_key_bytes
+       
+       # SHA256
+       sha256_hash = hashlib.sha256(combined).digest()
+       
+       # RIPEMD160 
+       address = hashlib.new('ripemd160', sha256_hash).hexdigest()
+       
+       # Actualiza las direcciones asociadas en blockchain
+       if not hasattr(blockchain, 'wallet_addresses'):
+           blockchain.wallet_addresses = {}
+           
+       for wallet_addr in blockchain.public_keys:
+           if blockchain.public_keys[wallet_addr] == public_key:
+               if wallet_addr not in blockchain.wallet_addresses:
+                   blockchain.wallet_addresses[wallet_addr] = []
+               blockchain.wallet_addresses[wallet_addr].append(address)
+               # Inicializa balance para la nueva dirección
+               blockchain.balances[address] = 0
+               break
+
+       return jsonify({'address': address}), 200
+   except Exception as e:
+       return jsonify({'error': str(e)}), 500
 
 def generate_address_from_public_key(public_key):
     try:
@@ -387,7 +416,18 @@ def get_balance():
     
     print(f"Retrieving balance for {address}")
     balance = blockchain.get_balance(clean_public_key(address))
-    return jsonify({'balance': balance}), 200    
+    return jsonify({'balance': balance}), 200
+
+# def get_balance(self, address):
+#    """Obtiene el balance total de una dirección incluyendo todas sus direcciones asociadas"""
+#    total_balance = self.balances.get(address, 0)
+   
+#    # Si la dirección tiene direcciones adicionales asociadas, suma sus balances
+#    if hasattr(self, 'wallet_addresses') and address in self.wallet_addresses:
+#        for addr in self.wallet_addresses[address]:
+#            total_balance += self.balances.get(addr, 0)
+           
+#    return total_balance
     
 @app.route('/escrow/create', methods=['POST'])
 def create_escrow():

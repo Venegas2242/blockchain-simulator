@@ -14,6 +14,7 @@ class Blockchain:
         self.last_block_hash = '1'
         self.block_reward = 10
         self.halving_blocks = 2
+        self.wallet_addresses = {}  # Almacena direcciones adicionales por wallet
         
         # Inicializar smart contract
         self.escrow_contract = SecureEscrowContract(self)
@@ -334,8 +335,21 @@ class Blockchain:
             raise
 
     def get_balance(self, address):
-        """Obtiene el balance de una dirección"""
-        return self.balances.get(address, 0)
+        """Obtiene el balance total de una dirección incluyendo todas sus direcciones asociadas"""
+        # Primero verificar si la dirección es una dirección principal
+        total_balance = self.balances.get(address, 0)
+        
+        # Luego buscar en todas las wallets y sus direcciones asociadas
+        for wallet_addr, addresses in self.wallet_addresses.items():
+            if wallet_addr == address:  # Si es la dirección principal
+                # Sumar los balances de todas sus direcciones asociadas
+                for addr in addresses:
+                    total_balance += self.balances.get(addr, 0)
+            elif address in addresses:  # Si es una dirección asociada
+                # Devolver el balance específico de esa dirección
+                return self.balances.get(address, 0)
+                
+        return total_balance                                            
 
     def calculate_block_reward(self):
         """Calcula la recompensa actual por bloque basada en halvings"""

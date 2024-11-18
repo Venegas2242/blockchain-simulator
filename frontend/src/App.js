@@ -79,7 +79,11 @@ function App() {
       const response = await fetch(`${API_URL}/generate_wallet`);
       if (!response.ok) throw new Error('Network response was not ok');
       
-      const newWallet = await response.json();
+      const data = await response.json();
+      const newWallet = {
+        ...data,
+        addresses: [data.address]
+      };
       const updatedWallets = [...wallets, newWallet];
       
       setWallets(updatedWallets);
@@ -139,6 +143,24 @@ function App() {
     setActiveWallet(null);
     localStorage.removeItem('activeWallet');
     setBalance(null);
+  };
+
+  const handleNewAddress = async (address) => {
+    if (activeWallet) {
+      const updatedWallet = {
+        ...activeWallet,
+        addresses: [...(activeWallet.addresses || [activeWallet.address]), address]
+      };
+      
+      const updatedWallets = wallets.map(w => 
+        w.address === activeWallet.address ? updatedWallet : w
+      );
+      
+      setWallets(updatedWallets);
+      setActiveWallet(updatedWallet);
+      localStorage.setItem('wallets', JSON.stringify(updatedWallets));
+      localStorage.setItem('activeWallet', JSON.stringify(updatedWallet));
+    }
   };
 
   const handleNewTransaction = async (transaction) => {
@@ -289,7 +311,7 @@ function App() {
         
         {/* Tab Content */}
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
-          {activeWallet && <Wallet wallet={activeWallet} balance={balance} />}
+          {activeWallet && <Wallet wallet={activeWallet} balance={balance} onNewAddress={handleNewAddress}/>}
         </div>
         
         <div className={`tab-content ${activeTab === 'transaction' ? 'active' : ''}`}>
