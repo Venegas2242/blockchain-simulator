@@ -10,12 +10,15 @@ import Escrow from './components/Escrow';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function App() {
-  const [wallet, setWallet] = useState(null);
+  const [wallets, setWallets] = useState([]);
+  const [activeWallet, setActiveWallet] = useState(null);
   const [balance, setBalance] = useState(null);
   const [blockchain, setBlockchain] = useState([]);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('wallet');
   const [verifyResult, setVerifyResult] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginKey, setLoginKey] = useState('');
 
   const fetchBalance = useCallback(async (address) => {
     if (!address) return;
@@ -28,69 +31,118 @@ function App() {
       setBalance(data.balance);
       setError(null);
     } catch (error) {
-      console.error('Error fetching balance:', error);
-      setError('Failed to fetch balance. Please try again.');
+      setError('Failed to fetch balance');
     }
   }, []);
 
   const fetchBlockchain = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/chain`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
+      if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
       setBlockchain(data.chain);
-      setError(null);
     } catch (error) {
-      console.error('Error fetching blockchain:', error);
-      setError('Failed to fetch blockchain data. Please try again.');
+      setError('Failed to fetch blockchain data');
     }
   }, []);
 
   useEffect(() => {
-    const storedWallet = localStorage.getItem('wallet');
-    if (storedWallet) {
-      const parsedWallet = JSON.parse(storedWallet);
-      setWallet(parsedWallet);
-      fetchBalance(parsedWallet.address);
-    } else {
-      generateWallet();
+    const storedWallets = localStorage.getItem('wallets');
+    if (storedWallets) {
+      const parsedWallets = JSON.parse(storedWallets);
+      setWallets(parsedWallets);
+      const activeWalletData = localStorage.getItem('activeWallet');
+      if (activeWalletData) {
+        const activeWallet = parsedWallets.find(w => w.address === JSON.parse(activeWalletData).address);
+        if (activeWallet) {
+          setActiveWallet(activeWallet);
+          fetchBalance(activeWallet.address);
+        }
+      }
     }
     fetchBlockchain();
   }, [fetchBalance, fetchBlockchain]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (wallet?.address) {
-        fetchBalance(wallet.address);
+      if (activeWallet?.address) {
+        fetchBalance(activeWallet.address);
       }
       fetchBlockchain();
     }, 10000);
 
     return () => clearInterval(intervalId);
-  }, [wallet, fetchBalance, fetchBlockchain]);
+  }, [activeWallet, fetchBalance, fetchBlockchain]);
 
   const generateWallet = async () => {
     try {
       const response = await fetch(`${API_URL}/generate_wallet`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      setWallet(data);
-      localStorage.setItem('wallet', JSON.stringify(data));
-      fetchBalance(data.address);
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const newWallet = await response.json();
+      const updatedWallets = [...wallets, newWallet];
+      
+      setWallets(updatedWallets);
+      setActiveWallet(newWallet);
+      localStorage.setItem('wallets', JSON.stringify(updatedWallets));
+      localStorage.setItem('activeWallet', JSON.stringify(newWallet));
+      
+      fetchBalance(newWallet.address);
       setError(null);
     } catch (error) {
-      console.error('Error generating wallet:', error);
-      setError('Failed to generate wallet. Please try again.');
+      setError('Failed to generate wallet');
     }
+  };
+
+  const handleLogin = async () => {
+    try {
+      const decryptResponse = await fetch(`${API_URL}/decrypt_private_key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          encrypted_private_key: loginKey,
+          password: "1234"
+        })
+      });
+  
+      if (!decryptResponse.ok) throw new Error('Invalid key');
+      const decryptData = await decryptResponse.json();
+      
+      // Buscar la wallet por su llave privada desencriptada
+      const wallet = wallets.find(w => 
+        w.private_key === decryptData.decrypted_private_key ||
+        w.encrypted_key === loginKey
+      );
+  
+      if (wallet) {
+        setActiveWallet(wallet);
+        localStorage.setItem('activeWallet', JSON.stringify(wallet));
+        fetchBalance(wallet.address);
+        setShowLoginModal(false);
+        setLoginKey('');
+        setError(null);
+      } else {
+        setError('Wallet not found');
+      }
+    } catch (error) {
+      setError('Invalid private key or wallet not found');
+    }
+  };
+
+  const switchWallet = (wallet) => {
+    setActiveWallet(wallet);
+    localStorage.setItem('activeWallet', JSON.stringify(wallet));
+    fetchBalance(wallet.address);
+  };
+
+  const logout = () => {
+    setActiveWallet(null);
+    localStorage.removeItem('activeWallet');
+    setBalance(null);
   };
 
   const handleNewTransaction = async (transaction) => {
     try {
-      console.log("Transacción a realizar: ", transaction);
       const response = await fetch(`${API_URL}/transactions/new`, {
         method: 'POST',
         headers: {
@@ -98,18 +150,18 @@ function App() {
         },
         body: JSON.stringify(transaction),
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to create transaction');
       }
-
+  
       const data = await response.json();
       console.log('Transaction added to mempool:', data);
       
       await fetchBlockchain();
-      if (wallet?.address) {
-        await fetchBalance(wallet.address);
+      if (activeWallet?.address) {
+        await fetchBalance(activeWallet.address);
       }
       setError(null);
     } catch (error) {
@@ -148,6 +200,54 @@ function App() {
       </header>
       <main className="main-content">
         {error && <div className="error">{error}</div>}
+        
+        {/* Wallet Management Section */}
+        <div className="wallet-management">
+          {activeWallet ? (
+            <div className="active-wallet-controls">
+              <select 
+                value={activeWallet.address}
+                onChange={(e) => {
+                  const selected = wallets.find(w => w.address === e.target.value);
+                  if (selected) switchWallet(selected);
+                }}
+              >
+                {wallets.map(w => (
+                  <option key={w.address} value={w.address}>
+                    {w.address.substring(0, 8)}...
+                  </option>
+                ))}
+              </select>
+              <button onClick={logout}>Cerrar Sesión</button>
+              <button onClick={() => setShowLoginModal(true)}>Cambiar Wallet</button>
+              <button onClick={generateWallet}>Nueva Wallet</button>
+            </div>
+          ) : (
+            <div className="wallet-login">
+              <button onClick={() => setShowLoginModal(true)}>Iniciar Sesión</button>
+              <button onClick={generateWallet}>Generar Nueva Wallet</button>
+            </div>
+          )}
+        </div>
+
+        {/* Login Modal */}
+        {showLoginModal && (
+          <div className="modal">
+            <div className="modal-content">
+              <h3>Iniciar Sesión con Wallet</h3>
+              <input
+                type="password"
+                placeholder="Encrypted Private Key"
+                value={loginKey}
+                onChange={(e) => setLoginKey(e.target.value)}
+              />
+              <button onClick={handleLogin}>Iniciar Sesión</button>
+              <button onClick={() => setShowLoginModal(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
         <div className="tab-container">
           <button 
             className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} 
@@ -187,21 +287,21 @@ function App() {
           </button>
         </div>
         
+        {/* Tab Content */}
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
-          {wallet && <Wallet wallet={wallet} balance={balance} />}
-          {!wallet && <button onClick={generateWallet}>Generate Wallet</button>}
+          {activeWallet && <Wallet wallet={activeWallet} balance={balance} />}
         </div>
         
         <div className={`tab-content ${activeTab === 'transaction' ? 'active' : ''}`}>
-          <Transaction onNewTransaction={handleNewTransaction} address={wallet?.address} />
+          <Transaction onNewTransaction={handleNewTransaction} address={activeWallet?.address} />
         </div>
 
         <div className={`tab-content ${activeTab === 'mempool' ? 'active' : ''}`}>
           <Mempool 
-            wallet={wallet}
+            wallet={activeWallet}
             onRefresh={() => {
               fetchBlockchain();
-              if (wallet?.address) fetchBalance(wallet.address);
+              if (activeWallet?.address) fetchBalance(activeWallet.address);
             }}
             onError={setError}
           />
@@ -218,10 +318,10 @@ function App() {
 
         <div className={`tab-content ${activeTab === 'escrow' ? 'active' : ''}`}>
           <Escrow 
-            wallet={wallet} 
+            wallet={activeWallet} 
             onError={setError}
             onBalanceUpdate={() => {
-              if (wallet?.address) fetchBalance(wallet.address);
+              if (activeWallet?.address) fetchBalance(activeWallet.address);
             }}
           />
         </div>
