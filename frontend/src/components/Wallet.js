@@ -77,6 +77,7 @@ const Wallet = ({ wallet, balance, onNewAddress }) => {
        <p>
          <strong>Llave Privada (Cifrada):</strong> {truncateKey(wallet.encrypted_key)}
          <button onClick={() => setShowPasswordInput(true)}>Decifrar y copiar</button>
+         <button onClick={() => copyToClipboard(wallet.encrypted_key)}>Copiar encriptada</button>
        </p>
        {showPasswordInput && (
          <div className="decrypt-input">

@@ -84,11 +84,11 @@ function App() {
         ...data,
         addresses: [data.address]
       };
-      const updatedWallets = [...wallets, newWallet];
       
-      setWallets(updatedWallets);
+      // Guardar la wallet completa, sin truncar la encrypted_key
+      setWallets([...wallets, newWallet]);
       setActiveWallet(newWallet);
-      localStorage.setItem('wallets', JSON.stringify(updatedWallets));
+      localStorage.setItem('wallets', JSON.stringify([...wallets, newWallet]));
       localStorage.setItem('activeWallet', JSON.stringify(newWallet));
       
       fetchBalance(newWallet.address);
