@@ -481,17 +481,17 @@ def confirm_delivery():
         return jsonify({'error': str(e)}), 400
 
 @app.route('/escrow/open-dispute', methods=['POST'])
-@app.route('/escrow/open-dispute', methods=['POST'])
 def open_dispute():
     try:
         values = request.get_json()
-        required = ['agreement_id', 'buyer', 'reason']  # Cambiado 'party' por 'buyer'
+        required = ['agreement_id', 'buyer', 'reason']
         if not all(k in values for k in required):
             return jsonify({'error': 'Missing values'}), 400
 
         blockchain.escrow_contract.open_dispute(
             agreement_id=values['agreement_id'],
-            buyer=values['buyer']  # Cambiado de 'party' a 'buyer'
+            buyer=values['buyer'],
+            reason=values['reason']
         )
 
         return jsonify({'message': 'Disputa abierta y reembolso iniciado'}), 200
@@ -503,14 +503,32 @@ def open_dispute():
 def get_agreements(wallet_address):
     """Obtiene todos los acuerdos relacionados con una dirección"""
     try:
-        agreements = []
+        active_agreements = []
+        completed_agreements = []
+        cancelled_agreements = []
+        
         for agreement_id, agreement in blockchain.escrow_contract.state['agreements'].items():
             if agreement['buyer'] == wallet_address or agreement['seller'] == wallet_address:
                 agreement_copy = agreement.copy()
                 agreement_copy['id'] = agreement_id
-                agreements.append(agreement_copy)
-
-        return jsonify({'agreements': agreements}), 200
+                
+                # Clasificar acuerdos según su estado
+                if agreement['status'] == 'COMPLETED':
+                    completed_agreements.append(agreement_copy)
+                elif agreement['status'] == 'CANCELLED':
+                    cancelled_agreements.append(agreement_copy)
+                else:
+                    active_agreements.append(agreement_copy)
+                    
+        # Ordenar cada lista por timestamp (más recientes primero)
+        active_agreements.sort(key=lambda x: x['timestamp'], reverse=True)
+        completed_agreements.sort(key=lambda x: x['timestamp'], reverse=True)
+        cancelled_agreements.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Combinar las listas en el orden deseado
+        all_agreements = active_agreements + completed_agreements + cancelled_agreements
+        
+        return jsonify({'agreements': all_agreements}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400

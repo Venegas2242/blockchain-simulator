@@ -180,32 +180,34 @@ class SecureEscrowContract:
         print(f"Estado actualizado: COMPLETED")
         return True
 
-    def open_dispute(self, agreement_id: str, buyer: str):
+    def open_dispute(self, agreement_id: str, buyer: str, reason: str = None):
         """Abre una disputa e inicia el reembolso inmediato"""
         if agreement_id not in self.state['agreements']:
             raise ValueError("Acuerdo no encontrado")
             
         agreement = self.state['agreements'][agreement_id]
         
-        # Solo el comprador puede abrir disputas
         if buyer != agreement['buyer']:
             raise ValueError("Solo el comprador puede abrir disputas")
         
-        # Verificar estado válido
         valid_states = ['PENDING_SELLER_CONFIRMATION', 'AWAITING_SHIPMENT', 'SHIPPED']
-        if agreement['status'] not in valid_states:
-            raise ValueError(f"No se puede abrir disputa en estado: {agreement['status']}")
+        current_state = agreement['status']
+        
+        if current_state not in valid_states:
+            raise ValueError(f"No se puede abrir disputa en estado: {current_state}")
 
         print(f"\n=== PROCESANDO DISPUTA Y REEMBOLSO ===")
         print(f"Acuerdo: {agreement_id}")
         print(f"Comprador: {agreement['buyer']}")
+        print(f"Estado actual: {current_state}")
+        print(f"Razón: {reason}")
         print(f"Monto a reembolsar: {agreement['amount']} BBC")
 
         # Crear transacción de reembolso
         refund_transaction = {
             'sender': self.address,
             'recipient': agreement['buyer'],
-            'amount': agreement['amount'] + agreement['mediator_fee'],  # Devolver también la comisión del mediador
+            'amount': agreement['amount'] + agreement['mediator_fee'],
             'fee': agreement['reserved_mining_fees'],
             'timestamp': time(),
             'type': 'contract_transfer',
@@ -213,8 +215,20 @@ class SecureEscrowContract:
         }
 
         self.blockchain.mempool.append(refund_transaction)
+        
+        # Guardar información de la cancelación ANTES de cambiar el estado
+        agreement['cancellation_details'] = {
+            'cancelled_at': time(),
+            'cancelled_from_state': current_state,
+            'cancelled_by': buyer,
+            'reason': reason or 'No se proporcionó razón',
+            'type': 'DISPUTE'
+        }
+        
+        # Actualizar estado después de guardar los detalles
         agreement['status'] = 'CANCELLED'
         
         print(f"Reembolso enviado a mempool")
+        print(f"Estado previo: {current_state}")
         print(f"Estado actualizado: CANCELLED")
         return True

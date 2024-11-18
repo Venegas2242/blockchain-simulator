@@ -178,6 +178,11 @@ const Escrow = ({ wallet, onError, onBalanceUpdate }) => {
         }
     };
 
+    const formatAddress = (address) => {
+        if (!address) return '';
+        return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+    };
+
     return (
         <div className="escrow-container">
             <div className="tabs">
@@ -249,11 +254,25 @@ const Escrow = ({ wallet, onError, onBalanceUpdate }) => {
                         <div key={agreement.id} className="agreement-card">
                             <h4>Acuerdo #{agreement.id.substring(0, 8)}</h4>
                             <div className="agreement-details">
-                                <p><strong>Estado:</strong> {agreement.status}</p>
+                                <p className={`status ${agreement.status.toLowerCase()}`}>
+                                    <strong>Estado:</strong> {agreement.status}
+                                    {agreement.status === 'CANCELLED' && agreement.cancellation_details && (
+                                        <span className="cancellation-info">
+                                            <br/>
+                                            Estado previo: {agreement.cancellation_details.cancelled_from_state}
+                                            <br/>
+                                            Razón: {agreement.cancellation_details.reason}
+                                            <br/>
+                                            Cancelado por: {agreement.cancellation_details.cancelled_by}
+                                            <br/>
+                                            Fecha: {new Date(agreement.cancellation_details.cancelled_at * 1000).toLocaleString()}
+                                        </span>
+                                    )}
+                                </p>
                                 <p><strong>Descripción:</strong> {agreement.description}</p>
                                 <p><strong>Cantidad:</strong> {agreement.amount} BBC</p>
-                                <p><strong>Comprador:</strong> {agreement.buyer}</p>
-                                <p><strong>Vendedor:</strong> {agreement.seller}</p>
+                                <p><strong>Comprador:</strong> {formatAddress(agreement.buyer)}</p>
+                                <p><strong>Vendedor:</strong> {formatAddress(agreement.seller)}</p>
                                 {agreement.tracking_info && (
                                     <p><strong>Tracking:</strong> {agreement.tracking_info}</p>
                                 )}

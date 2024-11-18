@@ -60,13 +60,64 @@
     flex-direction: column;
     gap: 20px;
   }
+
+  .agreements-list h4 {
+    margin-top: 24px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #eee;
+}
+  /* Estilos para los estados del acuerdo */
+.agreement-status {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.address {
+  font-family: monospace;
+  background: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
   
   .agreement-card {
     border: 1px solid #ddd;
     border-radius: 8px;
-    padding: 15px;
-    background-color: #f9f9f9;
+    padding: 16px;
+    margin-bottom: 16px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
+
+  .status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  
+  .status.completed {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status.cancelled {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.status.pending_seller_confirmation {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.status.awaiting_shipment {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+.status.shipped {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
 
   .dispute-button {
     background-color: #ff4444;
@@ -80,4 +131,12 @@
 
 .dispute-button:hover {
     background-color: #cc0000;
+}
+
+.cancellation-info {
+  font-size: 0.9em;
+  margin-top: 4px;
+  padding: 8px;
+  background-color: rgba(0,0,0,0.05);
+  border-radius: 4px;
 }
