@@ -265,16 +265,32 @@ def decrypt_private_key_route():
         encrypted_private_key = data.get('encrypted_private_key')
         password = data.get('password')
 
-        print(f"Recibida solicitud de descifrado")
-        print(f"Password recibida: {password}")
-        print(f"Encrypted key recibida: {encrypted_private_key}")
-
         if not encrypted_private_key or not password:
             return jsonify({'error': 'Missing encrypted_private_key or password'}), 400
 
         try:
+            # Desencriptar la llave privada
             decrypted_private_key = decrypt_private_key(encrypted_private_key, password)
-            return jsonify({'decrypted_private_key': decrypted_private_key}), 200
+            
+            # Generar la dirección a partir de la llave privada
+            wallet_gen = WalletGenerator()
+            public_key = wallet_gen.private_to_public(decrypted_private_key)
+            address = wallet_gen.public_to_address(public_key)
+            
+            # Cargar en memoria si no existe
+            if address not in blockchain.public_keys:
+                blockchain.public_keys[address] = public_key
+                # Si no existe el balance, inicializarlo
+                if address not in blockchain.balances:
+                    blockchain.balances[address] = 10
+
+            return jsonify({
+                'decrypted_private_key': decrypted_private_key,
+                'address': address,
+                'public_key': public_key,
+                'balance': blockchain.balances[address]
+            }), 200
+            
         except Exception as e:
             print(f"Error específico en el descifrado: {str(e)}")
             return jsonify({'error': f'Decryption failed: {str(e)}'}), 400

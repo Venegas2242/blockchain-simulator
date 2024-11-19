@@ -422,3 +422,14 @@ class WalletGenerator:
         except Exception as e:
             print(f"\nERROR en generate_wallet: {str(e)}")
             raise
+        
+    def private_to_public(self, private_key_hex):
+        private_key = SigningKey.from_string(bytes.fromhex(private_key_hex), curve=SECP256k1)
+        public_key = private_key.get_verifying_key()
+        return public_key.to_string().hex()
+        
+    def public_to_address(self, public_key):
+        public_key_bytes = bytes.fromhex(public_key)
+        sha256_hash = hashlib.sha256(public_key_bytes).digest()
+        ripemd160_hash = hashlib.new('ripemd160', sha256_hash).hexdigest()
+        return ripemd160_hash

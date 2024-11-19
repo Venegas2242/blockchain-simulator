@@ -5,7 +5,7 @@ import Transaction from './components/Transaction';
 import Blockchain from './components/Blockchain';
 import VerifyBlock from './components/VerifyBlock';
 import Mempool from './components/Mempool';
-import Escrow from './components/Escrow'; 
+import Escrow from './components/Escrow';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -24,9 +24,7 @@ function App() {
     if (!address) return;
     try {
       const response = await fetch(`${API_URL}/balance?address=${encodeURIComponent(address)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch balance');
-      }
+      if (!response.ok) throw new Error('Failed to fetch balance');
       const data = await response.json();
       setBalance(data.balance);
       setError(null);
@@ -85,10 +83,10 @@ function App() {
         addresses: [data.address]
       };
       
-      // Guardar la wallet completa, sin truncar la encrypted_key
-      setWallets([...wallets, newWallet]);
+      // Guardar solo la wallet nueva
+      setWallets([newWallet]);
       setActiveWallet(newWallet);
-      localStorage.setItem('wallets', JSON.stringify([...wallets, newWallet]));
+      localStorage.setItem('wallets', JSON.stringify([newWallet]));
       localStorage.setItem('activeWallet', JSON.stringify(newWallet));
       
       fetchBalance(newWallet.address);
@@ -108,40 +106,58 @@ function App() {
           password: "1234"
         })
       });
-  
+
       if (!decryptResponse.ok) throw new Error('Invalid key');
       const decryptData = await decryptResponse.json();
       
-      // Buscar la wallet por su llave privada desencriptada
-      const wallet = wallets.find(w => 
-        w.private_key === decryptData.decrypted_private_key ||
-        w.encrypted_key === loginKey
-      );
-  
-      if (wallet) {
-        setActiveWallet(wallet);
-        localStorage.setItem('activeWallet', JSON.stringify(wallet));
-        fetchBalance(wallet.address);
-        setShowLoginModal(false);
-        setLoginKey('');
-        setError(null);
-      } else {
-        setError('Wallet not found');
-      }
+      // Crear objeto wallet con los datos del servidor
+      const wallet = {
+        address: decryptData.address,
+        public_key: decryptData.public_key,
+        encrypted_key: loginKey
+      };
+
+      // Actualizar solo la wallet actual
+      setActiveWallet(wallet);
+      setWallets([wallet]); // Solo mantener la wallet activa
+      localStorage.setItem('activeWallet', JSON.stringify(wallet));
+      localStorage.setItem('wallets', JSON.stringify([wallet]));
+      
+      fetchBalance(wallet.address);
+      setShowLoginModal(false);
+      setLoginKey('');
+      setError(null);
     } catch (error) {
       setError('Invalid private key or wallet not found');
     }
   };
-
+  
   const switchWallet = (wallet) => {
     setActiveWallet(wallet);
     localStorage.setItem('activeWallet', JSON.stringify(wallet));
     fetchBalance(wallet.address);
   };
 
+  const loadWallet = () => {
+    const storedWallets = localStorage.getItem('wallets');
+    if (storedWallets) {
+      const parsedWallets = JSON.parse(storedWallets);
+      setWallets(parsedWallets);
+      const activeWalletData = localStorage.getItem('activeWallet');
+      if (activeWalletData) {
+        const activeWallet = parsedWallets.find(w => w.address === JSON.parse(activeWalletData).address);
+        if (activeWallet) {
+          setActiveWallet(activeWallet);
+          fetchBalance(activeWallet.address);
+        }
+      }
+    }
+  };
+
   const logout = () => {
     setActiveWallet(null);
-    localStorage.removeItem('activeWallet');
+    setWallets([]);
+    localStorage.clear(); // Limpiar todo el localStorage
     setBalance(null);
   };
 
@@ -223,7 +239,6 @@ function App() {
       <main className="main-content">
         {error && <div className="error">{error}</div>}
         
-        {/* Wallet Management Section */}
         <div className="wallet-management">
           {activeWallet ? (
             <div className="active-wallet-controls">
@@ -252,7 +267,6 @@ function App() {
           )}
         </div>
 
-        {/* Login Modal */}
         {showLoginModal && (
           <div className="modal">
             <div className="modal-content">
@@ -269,7 +283,6 @@ function App() {
           </div>
         )}
 
-        {/* Tabs */}
         <div className="tab-container">
           <button 
             className={`tab ${activeTab === 'wallet' ? 'active' : ''}`} 
@@ -309,7 +322,6 @@ function App() {
           </button>
         </div>
         
-        {/* Tab Content */}
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
           {activeWallet && <Wallet wallet={activeWallet} balance={balance} onNewAddress={handleNewAddress}/>}
         </div>
