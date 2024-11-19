@@ -1,6 +1,7 @@
 import hashlib
 import json
 from time import time
+import threading
 from secure_escrow_contract import SecureEscrowContract
 from crypto_utils import verify_signature, sign_transaction
 
@@ -16,12 +17,21 @@ class Blockchain:
         self.halving_blocks = 2
         self.wallet_addresses = {}  # Almacena direcciones adicionales por wallet
         
+        self.mining_stopped = False
+        self.mining_lock = threading.Lock()  # Agregar un lock para sincronización
+        self.current_mining_progress = {
+            'status': 'not_started',
+            'nonce': 0,
+            'hash': '',
+            'found': False,
+            'final_nonce': None,
+            'final_hash': None
+        }
+        
         # Inicializar smart contract
         self.escrow_contract = SecureEscrowContract(self)
-        # Inicializar balance del contrato
-        self.balances[self.escrow_contract.address] = 1000
-        # Inicializar cuenta del mediador
-        self.balances['mediator'] = 0
+        self.balances[self.escrow_contract.address] = 1000 # Inicializar balance del contrato
+        self.balances['mediator'] = 0 # Inicializar cuenta del mediador
 
         # Crear bloque génesis
         genesis_block = {
@@ -40,21 +50,103 @@ class Blockchain:
         # Añadir bloque génesis
         self.chain.append(genesis_block)
 
+    def stop_mining(self):
+        """Detiene el proceso de minado actual"""
+        self.mining_stopped = True
+
+    def reset_mining_state(self):
+        """Reinicia el estado de minado"""
+        self.mining_stopped = False
+        self.current_mining_progress = {
+            'status': 'not_started',
+            'nonce': 0,
+            'hash': '',
+            'found': False,
+            'final_nonce': None,
+            'final_hash': None
+        }
+
     def calculate_hash(self, block):
-        """Calcula el hash del bloque con prueba de trabajo"""
-        nonce = 0
-        block_copy = block.copy()
-        block_copy.pop('hash', None)
-        
-        while True:
-            block_copy['nonce'] = nonce
-            block_string = json.dumps(block_copy, sort_keys=True).encode()
-            hash_result = hashlib.sha256(block_string).hexdigest()
+        """Calcula el hash del bloque con prueba de trabajo y emite el progreso"""
+        try:
+            nonce = 0
+            block_copy = block.copy()
+            block_copy.pop('hash', None)  # Eliminar el hash si existe
             
-            if hash_result.startswith('0000'):  # Dificultad fija de 4 ceros
-                return nonce, hash_result
+            is_genesis = block.get('index') == 1
             
-            nonce += 1
+            if not is_genesis:
+                print(f"\nBuscando nonce para bloque #{block['index']}")
+                self.current_mining_progress = {
+                    'status': 'mining',
+                    'nonce': 0,
+                    'hash': '',
+                    'found': False,
+                    'final_nonce': None,
+                    'final_hash': None
+                }
+            
+            while not self.mining_stopped:
+                block_copy['nonce'] = nonce
+                block_string = json.dumps(block_copy, sort_keys=True).encode()
+                hash_result = hashlib.sha256(block_string).hexdigest()
+                
+                if not is_genesis:
+                    self.current_mining_progress.update({
+                        'status': 'mining',
+                        'nonce': nonce,
+                        'hash': hash_result,
+                        'found': hash_result.startswith('0000')
+                    })
+                    
+                    if nonce % 100 == 0:
+                        print(f"\rNonce actual: {nonce}, Hash actual: {hash_result}", end="")
+                
+                if hash_result.startswith('0000'):
+                    if not is_genesis:
+                        print(f"\n¡Hash válido encontrado!")
+                        print(f"Nonce final: {nonce}")
+                        print(f"Hash final: {hash_result}")
+                        
+                        self.current_mining_progress.update({
+                            'status': 'completed',
+                            'nonce': nonce,
+                            'hash': hash_result,
+                            'found': True,
+                            'final_nonce': nonce,
+                            'final_hash': hash_result
+                        })
+                    return nonce, hash_result
+                
+                nonce += 1
+                
+                if nonce > 1000000:  # Añadir un límite máximo para evitar bucles infinitos
+                    raise ValueError("No se encontró un hash válido después de 1,000,000 intentos")
+            
+            if self.mining_stopped:
+                print("\nMinado detenido manualmente")
+                raise ValueError("Minado detenido manualmente")
+                
+        except Exception as e:
+            print(f"\nError durante el cálculo del hash: {str(e)}")
+            self.current_mining_progress.update({
+                'status': 'error',
+                'error': str(e)
+            })
+            raise
+
+    def get_mining_progress(self):
+        """Retorna el progreso actual del minado"""
+        if hasattr(self, 'current_mining_progress'):
+            return self.current_mining_progress
+        return {
+            'status': 'not_started',
+            'nonce': 0,
+            'hash': '',
+            'found': False,
+            'final_nonce': None,
+            'final_hash': None
+        }
             
     def sign_transaction(self, private_key, transaction):
         """
@@ -72,20 +164,18 @@ class Blockchain:
     def validate_chain(self):
         """Valida la cadena completa"""
         if len(self.chain) == 1:
-            #print("Solo bloque génesis - válido")
             return True
 
         for i, block in enumerate(self.chain):
-            #print(f"Verificando bloque {block['index']}")
-            
             if block['index'] > 1 and not self.verify_block(block):
                 print(f"Bloque {block['index']} falló en verify_block")
                 return False
             
+            # Verificar el hash del bloque sin usar calculate_hash
             block_copy = block.copy()
             block_copy.pop('hash', None)
-            block_copy.pop('nonce', None)
-            _, calculated_hash = self.calculate_hash(block_copy)
+            block_string = json.dumps(block_copy, sort_keys=True).encode()
+            calculated_hash = hashlib.sha256(block_string).hexdigest()
             
             if block['hash'] != calculated_hash:
                 print(f"Hash incorrecto en bloque {block['index']}")
@@ -101,41 +191,47 @@ class Blockchain:
                     print(f"Hash actual: {block['previous_hash']}")
                     return False
         
-        print("Cadena válida")
         return True
 
+    def verify_block_hash(self, block):
+        """Verifica el hash de un bloque sin prueba de trabajo"""
+        block_copy = block.copy()
+        block_copy.pop('hash', None)
+        block_string = json.dumps(block_copy, sort_keys=True).encode()
+        return hashlib.sha256(block_string).hexdigest()
+    
     def verify_block(self, block):
         """Verifica todas las transacciones en un bloque"""
         try:
+            # Verificar si es el bloque génesis
             if block['index'] == 1:
                 print("Bloque génesis - válido")
                 return True
 
             print(f"\nVerificando bloque {block['index']}:")
             
+            # Verificar campos requeridos
             required_fields = ['index', 'timestamp', 'transactions', 'previous_hash', 'merkle_root', 'nonce', 'hash']
             for field in required_fields:
                 if field not in block:
                     print(f"Error: Falta el campo {field} en el bloque")
                     return False
 
+            # Verificar que haya transacciones
             if not block['transactions']:
                 print("Error: No hay transacciones en el bloque")
                 return False
                 
+            # Verificar que la primera transacción sea coinbase
             if block['transactions'][0].get('type') != 'coinbase':
                 print("Error: Primera transacción no es coinbase")
                 return False
 
-            #print("Verificando transacciones...")
+            # Verificar las transacciones (excluyendo la coinbase)
             for i, transaction in enumerate(block['transactions'][1:], 1):
-                #print(f"Verificando transacción {i}: {transaction.get('type', 'normal')}")
-                
-                # Verificación especial para transacciones del contrato
+                # Verificar transacciones del contrato
                 if transaction.get('type') == 'contract_transfer':
-                    #print(f"Verificando transacción del contrato {i}")
-                    
-                    # Verificar campos requeridos para transacción del contrato
+                    # Verificar campos requeridos
                     contract_fields = ['sender', 'recipient', 'amount', 'timestamp', 'signature']
                     if not all(field in transaction for field in contract_fields):
                         print(f"Error: Faltan campos en la transacción del contrato")
@@ -146,20 +242,20 @@ class Blockchain:
                         print(f"Error: Remitente inválido para transacción del contrato")
                         return False
                     
-                    # Verificar que el destinatario sea válido (vendedor o mediador)
+                    # Verificar que el destinatario sea válido
                     recipient = transaction['recipient']
                     if recipient != 'mediator' and recipient not in self.balances:
                         print(f"Error: Destinatario inválido para transacción del contrato")
                         return False
                     
-                    # Verificar la firma especial del contrato
+                    # Verificar firma del contrato
                     if transaction['signature'] != 'VALID':
                         print(f"Error: Firma inválida para transacción del contrato")
                         return False
                     
                     continue
                 
-                # Verificación normal para otras transacciones
+                # Verificar transacciones normales
                 if 'signature' not in transaction:
                     print(f"Error: Transacción {i} no tiene firma")
                     return False
@@ -176,6 +272,7 @@ class Blockchain:
                     print(f"Error: Firma inválida en transacción {i}")
                     return False
             
+            # Verificar Merkle Root
             calculated_merkle = self.calculate_merkle_root(block['transactions'])
             if calculated_merkle != block['merkle_root']:
                 print("Error: Merkle root no coincide")
@@ -247,91 +344,73 @@ class Blockchain:
                 if self.get_balance(self.escrow_contract.address) < amount:
                     raise ValueError(f"Balance insuficiente en el contrato: {self.get_balance(self.escrow_contract.address)} BBC")
 
-    def mine(self, miner_address: str, selected_transactions=None):
-        """Mina un nuevo bloque"""
+    def calculate_hash(self, block):
+        """Calcula el hash del bloque con prueba de trabajo y emite el progreso"""
         try:
-            print("\nIniciando proceso de minado...")
-            transactions = []
-            total_fees = 0
+            nonce = 0
+            block_copy = block.copy()
+            block_copy.pop('hash', None)  # Eliminar el hash si existe
             
-            if selected_transactions and self.mempool:
-                print(f"Procesando {len(selected_transactions)} transacciones seleccionadas...")
-                selected_transactions = selected_transactions[:3]
+            is_genesis = block.get('index') == 1
+            
+            if not is_genesis:
+                print(f"\nBuscando nonce para bloque #{block['index']}")
+                self.current_mining_progress = {
+                    'status': 'mining',
+                    'nonce': 0,
+                    'hash': '',
+                    'found': False,
+                    'final_nonce': None,
+                    'final_hash': None
+                }
+            
+            while not self.mining_stopped:
+                block_copy['nonce'] = nonce
+                block_string = json.dumps(block_copy, sort_keys=True).encode()
+                hash_result = hashlib.sha256(block_string).hexdigest()
                 
-                temp_mempool = self.mempool.copy()
-                selected_txs = []
+                if not is_genesis:
+                    self.current_mining_progress.update({
+                        'status': 'mining',
+                        'nonce': nonce,
+                        'hash': hash_result,
+                        'found': hash_result.startswith('0000')
+                    })
+                    
+                    if nonce % 100 == 0:
+                        print(f"\rNonce actual: {nonce}, Hash actual: {hash_result}", end="")
                 
-                for tx_index in selected_transactions:
-                    if 0 <= tx_index < len(temp_mempool):
-                        tx = temp_mempool[tx_index]
-                        print(f"Procesando transacción: {tx.get('type', 'normal')}")
-                        selected_txs.append(tx)
-                        if 'fee' in tx:
-                            total_fees += tx['fee']
+                if hash_result.startswith('0000'):
+                    if not is_genesis:
+                        print(f"\n¡Hash válido encontrado!")
+                        print(f"Nonce final: {nonce}")
+                        print(f"Hash final: {hash_result}")
+                        
+                        self.current_mining_progress.update({
+                            'status': 'completed',
+                            'nonce': nonce,
+                            'hash': hash_result,
+                            'found': True,
+                            'final_nonce': nonce,
+                            'final_hash': hash_result
+                        })
+                    return nonce, hash_result
                 
-                # Remover transacciones seleccionadas de mempool
-                for tx in selected_txs:
-                    if tx in self.mempool:
-                        self.mempool.remove(tx)
+                nonce += 1
                 
-                transactions.extend(selected_txs)
-
-            print("Creando nuevo bloque...")
-            block_reward = self.calculate_block_reward()
-            total_reward = block_reward + total_fees
-
-            # Crear transacción coinbase
-            coinbase_transaction = {
-                'sender': "0",
-                'recipient': miner_address,
-                'amount': total_reward,
-                'type': 'coinbase'
-            }
-            transactions.insert(0, coinbase_transaction)
+                if nonce > 1000000:  # Añadir un límite máximo para evitar bucles infinitos
+                    raise ValueError("No se encontró un hash válido después de 1,000,000 intentos")
             
-            block = {
-                'index': len(self.chain) + 1,
-                'timestamp': time(),
-                'transactions': transactions,
-                'previous_hash': self.last_block['hash'],
-                'merkle_root': self.calculate_merkle_root(transactions),
-                'nonce': None,
-                'hash': None
-            }
-            
-            print("Calculando proof of work...")
-            block['nonce'], block['hash'] = self.calculate_hash(block)
-
-            print("\nProcesando transacciones en orden...")
-            print("1. Transacciones normales y depósitos al escrow")
-            # Primero procesar transacciones normales y depósitos al escrow
-            for tx in transactions[1:]:  # Saltar la coinbase
-                if tx.get('type') != 'contract_transfer':
-                    print(f"Procesando transacción tipo: {tx.get('type', 'normal')}")
-                    self.process_transaction(tx)
-
-            print("\n2. Transacciones del contrato")
-            # Luego procesar transacciones del contrato
-            for tx in transactions[1:]:
-                if tx.get('type') == 'contract_transfer':
-                    print("Procesando transacción del contrato")
-                    self.process_transaction(tx)
-
-            print("\nActualizando balance del minero...")
-            self.balances[miner_address] = self.get_balance(miner_address) + total_reward
-
-            print("Verificando bloque antes de añadirlo...")
-            if not self.verify_block(block):
-                raise ValueError("Bloque inválido")
-            
-            print("Añadiendo bloque a la cadena...")
-            self.chain.append(block)
-            
-            print("Minado completado exitosamente!")
-            return block
-            
+            if self.mining_stopped:
+                print("\nMinado detenido manualmente")
+                raise ValueError("Minado detenido manualmente")
+                
         except Exception as e:
-            print(f"Error durante el minado: {str(e)}")
+            print(f"\nError durante el cálculo del hash: {str(e)}")
+            self.current_mining_progress.update({
+                'status': 'error',
+                'error': str(e)
+            })
             raise
 
     def get_balance(self, address):
@@ -348,8 +427,8 @@ class Blockchain:
             elif address in addresses:  # Si es una dirección asociada
                 # Devolver el balance específico de esa dirección
                 return self.balances.get(address, 0)
-                
-        return total_balance                                            
+                    
+        return total_balance                                         
 
     def calculate_block_reward(self):
         """Calcula la recompensa actual por bloque basada en halvings"""
@@ -458,3 +537,98 @@ class Blockchain:
 
         # Verificar la firma utilizando los datos de la transacción (sin la firma)
         return verify_signature(public_key, transaction_copy, signature)
+    
+    def mine(self, miner_address: str, selected_transactions=None):
+        print("\nIniciando proceso de minado...")
+        self.mining_stopped = False  # Reset mining flag
+        
+        transactions = []
+        total_fees = 0
+        
+        try:
+            if selected_transactions and self.mempool:
+                print(f"Procesando {len(selected_transactions)} transacciones seleccionadas...")
+                print(f"Estado actual de la mempool: {self.mempool}")
+                
+                temp_mempool = self.mempool.copy()
+                selected_txs = []
+                
+                for tx_index in selected_transactions:
+                    if 0 <= tx_index < len(temp_mempool):
+                        tx = temp_mempool[tx_index]
+                        print(f"Procesando transacción {tx_index}: {tx}")
+                        selected_txs.append(tx)
+                        if 'fee' in tx:
+                            total_fees += tx['fee']
+                    else:
+                        print(f"Error: índice {tx_index} fuera de rango")
+                
+                # Remover transacciones seleccionadas de mempool
+                for tx in selected_txs:
+                    if tx in self.mempool:
+                        self.mempool.remove(tx)
+                        print(f"Transacción removida de mempool: {tx}")
+                
+                transactions.extend(selected_txs)
+
+            print(f"Total de comisiones: {total_fees}")
+            print("Creando nuevo bloque...")
+            
+            block_reward = self.calculate_block_reward()
+            total_reward = block_reward + total_fees
+            print(f"Recompensa total: {total_reward} (base: {block_reward}, comisiones: {total_fees})")
+
+            # Crear transacción coinbase
+            coinbase_transaction = {
+                'sender': "0",
+                'recipient': miner_address,
+                'amount': total_reward,
+                'type': 'coinbase'
+            }
+            transactions.insert(0, coinbase_transaction)
+            
+            block = {
+                'index': len(self.chain) + 1,
+                'timestamp': time(),
+                'transactions': transactions,
+                'previous_hash': self.last_block['hash'],
+                'merkle_root': self.calculate_merkle_root(transactions),
+                'nonce': None,
+                'hash': None
+            }
+            
+            print("Calculando proof of work...")
+            with self.mining_lock:
+                try:
+                    block['nonce'], block['hash'] = self.calculate_hash(block)
+                    print(f"\nHash encontrado: {block['hash']}")
+                    
+                    if not self.mining_stopped:
+                        print("\nProcesando transacciones...")
+                        for tx in transactions[1:]:
+                            print(f"Procesando transacción: {tx}")
+                            self.process_transaction(tx)
+                        
+                        print(f"\nActualizando balance del minero {miner_address}")
+                        print(f"Balance anterior: {self.get_balance(miner_address)}")
+                        self.balances[miner_address] = self.get_balance(miner_address) + total_reward
+                        print(f"Balance actualizado: {self.get_balance(miner_address)}")
+                        
+                        print("\nVerificando bloque antes de añadirlo...")
+                        if not self.verify_block(block):
+                            raise ValueError("Bloque inválido")
+                        
+                        print("Añadiendo bloque a la cadena...")
+                        self.chain.append(block)
+                        print("Minado completado exitosamente!")
+                        return block
+                    
+                except Exception as e:
+                    print(f"Error durante el minado: {str(e)}")
+                    raise
+                
+        except Exception as e:
+            print(f"Error durante el minado: {str(e)}")
+            raise
+        finally:
+            self.mining_stopped = True

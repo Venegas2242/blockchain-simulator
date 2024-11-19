@@ -50,6 +50,7 @@ def generate_wallet():
         traceback.print_exc()  # Imprime el stack trace completo
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/mine', methods=['POST'])
 def mine():
     print("\n===== INICIO DE MINADO =====")
@@ -58,45 +59,52 @@ def mine():
         miner_address = clean_public_key(values.get('miner_address'))
         selected_transactions = values.get('selected_transactions', [])
         
-        print(f"1. Minero: {miner_address[:8]}...")
-        print(f"2. Transacciones seleccionadas: {len(selected_transactions)}")
-
-        # 1. Minar el bloque
-        print("\n3. Iniciando proceso de minado:")
-        print("   a) Seleccionando transacciones de la mempool")
-        print("   b) Calculando recompensa y comisiones")
-        print("   c) Creando transacción coinbase")
-        print("   d) Calculando merkle root")
-        print("   e) Buscando nonce válido (Proof of Work)")
-        block = blockchain.mine(miner_address, selected_transactions)
+        print(f"Direccion del minero: {miner_address}")
+        print(f"Transacciones seleccionadas: {selected_transactions}")
         
-        # 2. Verificar validez de la cadena
-        print("\n4. Verificando validez de la cadena completa")
-        if not blockchain.validate_chain():
-            print("ERROR: La cadena no es válida después del minado")
-            blockchain.chain.pop()
-            return jsonify({'message': 'Mining failed: invalid blockchain state'}), 500
-
-        print("\n5. Minado exitoso:")
-        print(f"   Nuevo bloque: #{block['index']}")
-        print(f"   Hash: {block['hash'][:16]}...")
-        print(f"   Transacciones: {len(block['transactions'])}")
-        reward = next(tx['amount'] for tx in block['transactions'] if tx['sender'] == "0")
-        print(f"   Recompensa total: {reward} BBC")
-        print("===== FIN DE MINADO =====\n")
-
-        return jsonify({
-            'message': "New Block Forged",
-            'index': block['index'],
-            'transactions': block['transactions'],
-            'previous_hash': block['previous_hash'],
-            'hash': block['hash'],
-            'reward': reward
-        }), 200
-
+        # Detener cualquier minado en curso
+        blockchain.stop_mining()
+        
+        try:
+            block = blockchain.mine(miner_address, selected_transactions)
+            print(f"Bloque minado exitosamente: {block}")
+            
+            if not blockchain.validate_chain():
+                print("Error: La cadena quedó inválida después del minado")
+                blockchain.chain.pop()
+                return jsonify({'message': 'Mining failed: invalid blockchain state'}), 500
+            
+            result = {
+                'message': "New Block Forged",
+                'index': block['index'],
+                'transactions': block['transactions'],
+                'previous_hash': block['previous_hash'],
+                'hash': block['hash'],
+                'nonce': block['nonce']
+            }
+            
+            print(f"Resultado del minado: {result}")
+            return jsonify(result), 200
+            
+        except ValueError as ve:
+            print(f"Minado interrumpido: {str(ve)}")
+            return jsonify({'message': 'Mining stopped'}), 200
+            
     except Exception as e:
         print(f"ERROR durante el minado: {str(e)}")
+        traceback.print_exc()
         return jsonify({'message': f'Mining failed: {str(e)}'}), 500
+    finally:
+        blockchain.mining_stopped = True
+
+@app.route('/mine/progress', methods=['GET'])
+def get_mining_progress():
+    try:
+        progress = blockchain.get_mining_progress()
+        return jsonify(progress), 200
+    except Exception as e:
+        print(f"Error al obtener progreso de minado: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/transactions/new', methods=['POST'])
 def new_transaction():
@@ -154,13 +162,20 @@ def get_mempool():
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
-    if not blockchain.validate_chain():
-        return jsonify({'message': 'The blockchain is invalid'}), 400
-    response = {
-        'chain': blockchain.chain,
-        'length': len(blockchain.chain),
-    }
-    return jsonify(response), 200
+    """Endpoint para obtener la cadena completa"""
+    try:
+        if not blockchain.validate_chain():
+            return jsonify({'message': 'The blockchain is invalid'}), 400
+            
+        response = {
+            'chain': blockchain.chain,
+            'length': len(blockchain.chain),
+        }
+        return jsonify(response), 200
+        
+    except Exception as e:
+        print(f"Error al obtener la cadena: {str(e)}")
+        return jsonify({'message': str(e)}), 500
 
 @app.route('/generate_address', methods=['POST'])
 def generate_address():
