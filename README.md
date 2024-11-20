@@ -31,7 +31,6 @@ Un simulador de blockchain educativo que implementa los conceptos fundamentales 
 - Sistema de depósito seguro entre compradores y vendedores
 - Gestión automática de estados del contrato
 - Sistema de disputas y reembolsos
-- Comisiones configurables para mediador y mineros
 - Verificación de firmas para todas las operaciones
 
 ## 🛠️ Requisitos Técnicos
