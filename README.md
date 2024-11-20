@@ -21,7 +21,7 @@ Un simulador de blockchain educativo que implementa los conceptos fundamentales 
 
 ### 💼 Gestión de Wallets
 - Generación automática de carteras con frases mnemónicas
-- Balance inicial de 10 BBC (BlockchainCoin)
+- Balance inicial de 10 BBC
 - Sistema de cifrado de claves privadas con contraseña
 - Derivación segura de claves usando PBKDF2
 - Soporte para múltiples direcciones por wallet
