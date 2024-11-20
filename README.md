@@ -152,9 +152,7 @@ npm start
 
 ### Configuración
 1. Ajusta la dificultad de minado (0-4 ceros)
-2. Verifica bloques y transacciones
-3. Gestiona múltiples direcciones
-
+   
 ## 🔍 Análisis y Documentación
 
 Para un análisis detallado de la implementación, arquitectura y características técnicas, consulta:
