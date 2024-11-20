@@ -34,19 +34,16 @@ Todas las transacciones son:
 
 ```mermaid
 graph TD
-    A[Entropía Inicial] -->|16 bytes aleatorios| B[Cálculo Checksum]
-    B -->|SHA256| C[Primeros 4 bits]
-    A --> D[Concatenación]
-    C --> D[Concatenación]
-    D -->|132 bits| E[División en grupos]
-    E -->|11 bits por grupo| F[Conversión a Palabras]
-    F -->|12 palabras| G[Frase Mnemónica]
-    G -->|PBKDF2| H[Semilla]
-    H -->|HMAC-SHA512| I[Master Key + Chain Code]
-    I -->|Primeros 32 bytes| J[Master Private Key]
-    I -->|Últimos 32 bytes| K[Chain Code]
-    J -->|SECP256k1| L[Public Key]
-    L -->|SHA256 + RIPEMD160| M[Dirección]
+    A[Entropía 16 bytes] -->|SHA256| B[Checksum 4 bits]
+    A --> C[Concatenación]
+    B --> C
+    C -->|12 grupos de 11 bits| D[Frase Mnemónica]
+    D -->|PBKDF2| E[Semilla 64 bytes]
+    E -->|HMAC-SHA512| F[64 bytes output]
+    F -->|Primeros 32 bytes| G[Master Private Key]
+    F -->|Últimos 32 bytes| H[Chain Code sin usar]
+    G -->|ECDSA| I[Public Key]
+    I -->|SHA256 + RIPEMD160| J[Dirección]
 ```
 
 </details>
