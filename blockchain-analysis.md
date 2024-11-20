@@ -154,7 +154,6 @@ Backend->>Backend: Verifica firma ECDSA
 Backend->>Backend: Valida balance
 Backend->>Mempool: Añade transacción
 Backend->>Frontend: Confirma recepción
-Frontend->>Usuario: Muestra confirmación
 
 Note over Frontend,Backend: Proceso de Minado
 
@@ -230,16 +229,6 @@ stateDiagram-v2
     
     COMPLETED --> [*]
     CANCELLED --> [*]
-    
-    note right of PENDING_SELLER
-        Fondos bloqueados
-        Comisión: 1%
-    end note
-    
-    note right of SHIPPED
-        Tracking verificable
-        72h para confirmar
-    end note
 ```
 
 #### Características del Sistema
@@ -317,41 +306,6 @@ graph LR
 - Mediador: 1%
 - Minería: 0.1% × 3
 - Monto principal: 98.7%
-</details>
-
-### 3.5 🔗 Arquitectura del Sistema
-
-<details>
-<summary><strong>🏗️ Interacción entre Componentes</strong></summary>
-
-#### Diagrama de Arquitectura
-> Conexiones entre módulos del sistema
-
-```mermaid
-graph TD
-    A[Frontend] -->|API Calls| B[Backend]
-    B -->|Endpoints| C{Servicios}
-    
-    C -->|/wallet| D[Wallet Generator]
-    C -->|/transactions| E[Transaction Manager]
-    C -->|/mine| F[Mining Service]
-    C -->|/escrow| G[Smart Contract]
-    
-    D -->|BIP39/32| H[Key Generation]
-    E -->|ECDSA| I[Signature Verification]
-    F -->|SHA256| J[Proof of Work]
-    G -->|State Machine| K[Contract Logic]
-    
-    H --> L[Blockchain State]
-    I --> L
-    J --> L
-    K --> L
-    
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bbf,stroke:#333,stroke-width:2px
-    style C fill:#bfb,stroke:#333,stroke-width:2px
-    style L fill:#ff9,stroke:#333,stroke-width:2px
-```
 </details>
 
 ## 💡 4. Aplicaciones Prácticas Detalladas
@@ -552,18 +506,11 @@ graph TD
 
 ### 📑 Documentación Técnica
 - [BIP39 Specification](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
-- [BIP32 Specification](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
 - [Secp256k1 Documentation](https://en.bitcoin.it/wiki/Secp256k1)
-
-### 📚 Recursos de Aprendizaje
-- [Mastering Bitcoin](https://github.com/bitcoinbook/bitcoinbook)
-- [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper.pdf)
-- [Zero Knowledge Proofs](https://z.cash/technology/zksnarks/)
 
 ### 🛠️ Herramientas
 - [BIP39 Tool](https://iancoleman.io/bip39/)
 - [Blockchain Demo](https://andersbrownworth.com/blockchain/)
-- [Ethereum TX Decoder](https://flightwallet.github.io/decode-eth-tx/)
 
 </details>
 
