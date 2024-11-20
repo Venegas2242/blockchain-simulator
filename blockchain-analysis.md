@@ -131,6 +131,167 @@ graph TD
 
 </details>
 
+### 🔄 3.3 Sistema de Transacciones y Minado
+
+#### 3.3.1 Diagrama de Secuencia de Transacción
+
+```mermaid
+sequenceDiagram
+    participant Usuario
+    participant Frontend
+    participant Backend
+    participant Mempool
+    participant Blockchain
+    
+    Usuario->>Frontend: Inicia transacción
+    Frontend->>Frontend: Prepara datos y firma
+    Frontend->>Backend: POST /transactions/new
+    Backend->>Backend: Verifica firma ECDSA
+    Backend->>Backend: Valida balance
+    Backend->>Mempool: Añade transacción
+    Backend->>Frontend: Confirma recepción
+    Frontend->>Usuario: Muestra confirmación
+
+    Note over Frontend,Backend: Proceso de Minado
+
+    Usuario->>Frontend: Selecciona transacciones
+    Frontend->>Backend: POST /mine
+    Backend->>Mempool: Obtiene transacciones
+    Backend->>Backend: Crea bloque candidato
+    
+    loop Proof of Work
+        Backend->>Backend: Calcula hash
+        Backend->>Backend: Verifica dificultad
+    end
+    
+    Backend->>Blockchain: Añade bloque
+    Backend->>Mempool: Elimina transacciones minadas
+    Backend->>Frontend: Retorna bloque minado
+    Frontend->>Usuario: Actualiza interfaz
+```
+
+#### 3.3.2 Casos de Uso de Minería
+
+```mermaid
+graph TD
+    A[Minero] -->|Selecciona| B[Ver Mempool]
+    B -->|Hasta 3 tx| C[Iniciar Minado]
+    C -->|Mining Fee| D[Proof of Work]
+    C -->|Block Reward| E[Coinbase Tx]
+    D -->|Hash Válido| F[Nuevo Bloque]
+    F -->|Verificación| G[Añadir a Cadena]
+    G -->|Actualizar| H[Balances]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#bbf,stroke:#333,stroke-width:2px
+    style F fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### 3.4 📜 Smart Contract de Custodia (Escrow)
+
+#### 3.4.1 Diagrama de Estados
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING_SELLER: Comprador Deposita
+    PENDING_SELLER --> AWAITING_SHIPMENT: Vendedor Confirma
+    AWAITING_SHIPMENT --> SHIPPED: Vendedor Envía + Tracking
+    SHIPPED --> COMPLETED: Comprador Confirma
+    
+    PENDING_SELLER --> CANCELLED: Disputa/Timeout
+    AWAITING_SHIPMENT --> CANCELLED: Disputa
+    SHIPPED --> CANCELLED: Disputa
+    
+    COMPLETED --> [*]
+    CANCELLED --> [*]
+    
+    note right of PENDING_SELLER
+        Fondos bloqueados
+        Comisión: 1%
+    end note
+    
+    note right of SHIPPED
+        Tracking verificable
+        72h para confirmar
+    end note
+```
+
+#### 3.4.2 Diagrama de Secuencia de Operación
+
+```mermaid
+sequenceDiagram
+    participant Comprador
+    participant Contract
+    participant Vendedor
+    participant Blockchain
+    
+    Comprador->>Contract: createAgreement()
+    Note right of Contract: Bloquea fondos + comisiones
+    Contract->>Blockchain: depositTransaction
+    Contract->>Vendedor: Notifica nuevo acuerdo
+    
+    Vendedor->>Contract: confirmSeller()
+    Note right of Contract: Inicia período de envío
+    
+    Vendedor->>Contract: confirmShipment(tracking)
+    Note right of Contract: Inicia período de confirmación
+    
+    alt Entrega Exitosa
+        Comprador->>Contract: confirmDelivery()
+        Contract->>Vendedor: releasePayment()
+        Contract->>Blockchain: transferTransaction
+    else Disputa
+        Comprador->>Contract: openDispute()
+        Contract->>Comprador: refundPayment()
+        Contract->>Blockchain: refundTransaction
+    end
+```
+
+#### 3.4.3 Flujo de Comisiones
+
+```mermaid
+graph LR
+    A[Fondos Totales] -->|100%| B{Distribución}
+    B -->|98.7%| C[Monto Principal]
+    B -->|1%| D[Comisión Mediador]
+    B -->|0.3%| E[Comisiones Minería]
+    
+    C -->|Éxito| F[Vendedor]
+    C -->|Disputa| G[Comprador]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### 3.5 Interacción entre Componentes
+
+```mermaid
+graph TD
+    A[Frontend] -->|API Calls| B[Backend]
+    B -->|Endpoints| C{Servicios}
+    
+    C -->|/wallet| D[Wallet Generator]
+    C -->|/transactions| E[Transaction Manager]
+    C -->|/mine| F[Mining Service]
+    C -->|/escrow| G[Smart Contract]
+    
+    D -->|BIP39/32| H[Key Generation]
+    E -->|ECDSA| I[Signature Verification]
+    F -->|SHA256| J[Proof of Work]
+    G -->|State Machine| K[Contract Logic]
+    
+    H --> L[Blockchain State]
+    I --> L
+    J --> L
+    K --> L
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#bfb,stroke:#333,stroke-width:2px
+    style L fill:#ff9,stroke:#333,stroke-width:2px
+```
+
 ## 💡 4. Aplicaciones Prácticas Detalladas
 
 ### 💰 4.1 Finanzas Descentralizadas (DeFi)
