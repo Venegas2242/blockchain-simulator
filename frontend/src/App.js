@@ -6,6 +6,7 @@ import Blockchain from './components/Blockchain';
 import VerifyBlock from './components/VerifyBlock';
 import Mempool from './components/Mempool';
 import Escrow from './components/Escrow';
+import Settings from './components/Settings';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -106,28 +107,50 @@ function App() {
           password: "1234"
         })
       });
-
+  
       if (!decryptResponse.ok) throw new Error('Invalid key');
       const decryptData = await decryptResponse.json();
       
-      // Crear objeto wallet con los datos del servidor
-      const wallet = {
-        address: decryptData.address,
-        public_key: decryptData.public_key,
-        encrypted_key: loginKey
-      };
-
-      // Actualizar solo la wallet actual
-      setActiveWallet(wallet);
-      setWallets([wallet]); // Solo mantener la wallet activa
-      localStorage.setItem('activeWallet', JSON.stringify(wallet));
-      localStorage.setItem('wallets', JSON.stringify([wallet]));
+      // Obtener todas las wallets guardadas del localStorage
+      const storedWallets = JSON.parse(localStorage.getItem('wallets') || '[]');
       
-      fetchBalance(wallet.address);
-      setShowLoginModal(false);
-      setLoginKey('');
-      setError(null);
+      // Buscar la wallet por su encrypted_key en el localStorage
+      const existingWallet = storedWallets.find(w => w.encrypted_key === loginKey);
+      
+      if (existingWallet) {
+        console.log('Wallet encontrada:', existingWallet);
+        // Usar la wallet existente con todas sus direcciones
+        setActiveWallet(existingWallet);
+        setWallets([existingWallet]);
+        localStorage.setItem('activeWallet', JSON.stringify(existingWallet));
+        localStorage.setItem('wallets', JSON.stringify([existingWallet]));
+        fetchBalance(existingWallet.address);
+        setShowLoginModal(false);
+        setLoginKey('');
+        setError(null);
+      } else {
+        console.log('Creando nueva wallet');
+        // Si no existe, crear una nueva wallet
+        const newWallet = {
+          address: decryptData.address,
+          public_key: decryptData.public_key,
+          encrypted_key: loginKey,
+          addresses: [decryptData.address]
+        };
+        
+        // Agregar la nueva wallet al localStorage
+        const updatedWallets = [...storedWallets, newWallet];
+        setWallets([newWallet]);
+        setActiveWallet(newWallet);
+        localStorage.setItem('wallets', JSON.stringify(updatedWallets));
+        localStorage.setItem('activeWallet', JSON.stringify(newWallet));
+        fetchBalance(newWallet.address);
+        setShowLoginModal(false);
+        setLoginKey('');
+        setError(null);
+      }
     } catch (error) {
+      console.error('Error en login:', error);
       setError('Invalid private key or wallet not found');
     }
   };
@@ -156,9 +179,9 @@ function App() {
 
   const logout = () => {
     setActiveWallet(null);
-    setWallets([]);
-    localStorage.clear(); // Limpiar todo el localStorage
+    localStorage.removeItem('activeWallet');
     setBalance(null);
+    // No limpiar 'wallets' del localStorage para mantener el historial
   };
 
   const handleNewAddress = async (address) => {
@@ -320,6 +343,12 @@ function App() {
           >
             Smart Contract
           </button>
+          <button 
+            className={`tab ${activeTab === 'settings' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('settings')}
+          >
+            Configuración
+          </button>
         </div>
         
         <div className={`tab-content ${activeTab === 'wallet' ? 'active' : ''}`}>
@@ -358,6 +387,9 @@ function App() {
               if (activeWallet?.address) fetchBalance(activeWallet.address);
             }}
           />
+        </div>
+        <div className={`tab-content ${activeTab === 'settings' ? 'active' : ''}`}>
+          <Settings onError={setError} />
         </div>
       </main>
     </div>

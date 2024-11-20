@@ -615,6 +615,25 @@ def get_agreement(agreement_id):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+    
+@app.route('/settings/difficulty', methods=['GET'])
+def get_difficulty():
+    return jsonify({'difficulty': blockchain.mining_difficulty}), 200
+
+@app.route('/settings/difficulty', methods=['POST'])
+def set_difficulty():
+    try:
+        data = request.get_json()
+        difficulty = data.get('difficulty')
+        
+        if difficulty is None or not isinstance(difficulty, int) or difficulty < 0 or difficulty > 4:
+            return jsonify({'error': 'Invalid difficulty value'}), 400
+            
+        print(f"Actualizando dificultad de minado a {difficulty} ceros")
+        blockchain.mining_difficulty = difficulty
+        return jsonify({'message': 'Difficulty updated successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

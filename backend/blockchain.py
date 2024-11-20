@@ -16,6 +16,7 @@ class Blockchain:
         self.block_reward = 10
         self.halving_blocks = 2
         self.wallet_addresses = {}  # Almacena direcciones adicionales por wallet
+        self.mining_difficulty = 4  # Dificultad inicial
         
         self.mining_stopped = False
         self.mining_lock = threading.Lock()  # Agregar un lock para sincronización
@@ -74,6 +75,7 @@ class Blockchain:
             block_copy.pop('hash', None)  # Eliminar el hash si existe
             
             is_genesis = block.get('index') == 1
+            target = '0' * self.mining_difficulty  # Dificultad dinámica
             
             if not is_genesis:
                 print(f"\nBuscando nonce para bloque #{block['index']}")
@@ -96,13 +98,13 @@ class Blockchain:
                         'status': 'mining',
                         'nonce': nonce,
                         'hash': hash_result,
-                        'found': hash_result.startswith('0000')
+                        'found': hash_result.startswith(target)
                     })
                     
                     if nonce % 100 == 0:
                         print(f"\rNonce actual: {nonce}, Hash actual: {hash_result}", end="")
                 
-                if hash_result.startswith('0000'):
+                if hash_result.startswith(target):
                     if not is_genesis:
                         print(f"\n¡Hash válido encontrado!")
                         print(f"Nonce final: {nonce}")
@@ -200,62 +202,69 @@ class Blockchain:
         block_string = json.dumps(block_copy, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
     
+    def is_valid_hash(self, hash_result):
+        """Valida si un hash cumple con la dificultad actual"""
+        return hash_result.startswith('0' * self.mining_difficulty)
+    
     def verify_block(self, block):
         """Verifica todas las transacciones en un bloque"""
         try:
-            # Verificar si es el bloque génesis
             if block['index'] == 1:
                 print("Bloque génesis - válido")
                 return True
 
             print(f"\nVerificando bloque {block['index']}:")
             
-            # Verificar campos requeridos
             required_fields = ['index', 'timestamp', 'transactions', 'previous_hash', 'merkle_root', 'nonce', 'hash']
             for field in required_fields:
                 if field not in block:
                     print(f"Error: Falta el campo {field} en el bloque")
                     return False
 
-            # Verificar que haya transacciones
+            # Verificar el hash del bloque
+            block_copy = block.copy()
+            block_copy.pop('hash', None)
+            block_string = json.dumps(block_copy, sort_keys=True).encode()
+            calculated_hash = hashlib.sha256(block_string).hexdigest()
+            
+            if calculated_hash != block['hash']:
+                print(f"Error: Hash del bloque inválido")
+                print(f"Hash calculado: {calculated_hash}")
+                print(f"Hash almacenado: {block['hash']}")
+                return False
+                
+            # Verificar que el hash tenga al menos un cero inicial
+            # (requisito mínimo de prueba de trabajo)
+            if not block['hash'].startswith('0'):
+                print(f"Error: El hash no cumple con el requisito mínimo de prueba de trabajo")
+                return False
+
             if not block['transactions']:
                 print("Error: No hay transacciones en el bloque")
                 return False
                 
-            # Verificar que la primera transacción sea coinbase
             if block['transactions'][0].get('type') != 'coinbase':
                 print("Error: Primera transacción no es coinbase")
                 return False
 
-            # Verificar las transacciones (excluyendo la coinbase)
+            # Verificar transacciones
             for i, transaction in enumerate(block['transactions'][1:], 1):
-                # Verificar transacciones del contrato
                 if transaction.get('type') == 'contract_transfer':
-                    # Verificar campos requeridos
-                    contract_fields = ['sender', 'recipient', 'amount', 'timestamp', 'signature']
-                    if not all(field in transaction for field in contract_fields):
-                        print(f"Error: Faltan campos en la transacción del contrato")
-                        return False
-                    
-                    # Verificar que el remitente sea el contrato
                     if transaction['sender'] != self.escrow_contract.address:
                         print(f"Error: Remitente inválido para transacción del contrato")
                         return False
                     
-                    # Verificar que el destinatario sea válido
                     recipient = transaction['recipient']
                     if recipient != 'mediator' and recipient not in self.balances:
                         print(f"Error: Destinatario inválido para transacción del contrato")
                         return False
                     
-                    # Verificar firma del contrato
                     if transaction['signature'] != 'VALID':
                         print(f"Error: Firma inválida para transacción del contrato")
                         return False
-                    
+                        
                     continue
                 
-                # Verificar transacciones normales
                 if 'signature' not in transaction:
                     print(f"Error: Transacción {i} no tiene firma")
                     return False
@@ -272,15 +281,14 @@ class Blockchain:
                     print(f"Error: Firma inválida en transacción {i}")
                     return False
             
-            # Verificar Merkle Root
             calculated_merkle = self.calculate_merkle_root(block['transactions'])
             if calculated_merkle != block['merkle_root']:
                 print("Error: Merkle root no coincide")
                 return False
-                
+                    
             print("Verificación exitosa!")
             return True
-            
+                
         except Exception as e:
             print(f"Error durante la verificación del bloque: {str(e)}")
             return False
@@ -349,12 +357,13 @@ class Blockchain:
         try:
             nonce = 0
             block_copy = block.copy()
-            block_copy.pop('hash', None)  # Eliminar el hash si existe
+            block_copy.pop('hash', None)
             
             is_genesis = block.get('index') == 1
+            target = '0' * self.mining_difficulty
             
             if not is_genesis:
-                print(f"\nBuscando nonce para bloque #{block['index']}")
+                print(f"\nBuscando nonce para bloque #{block['index']} (Dificultad: {self.mining_difficulty} ceros)")
                 self.current_mining_progress = {
                     'status': 'mining',
                     'nonce': 0,
@@ -374,13 +383,13 @@ class Blockchain:
                         'status': 'mining',
                         'nonce': nonce,
                         'hash': hash_result,
-                        'found': hash_result.startswith('0000')
+                        'found': self.is_valid_hash(hash_result)
                     })
                     
                     if nonce % 100 == 0:
                         print(f"\rNonce actual: {nonce}, Hash actual: {hash_result}", end="")
                 
-                if hash_result.startswith('0000'):
+                if self.is_valid_hash(hash_result):
                     if not is_genesis:
                         print(f"\n¡Hash válido encontrado!")
                         print(f"Nonce final: {nonce}")
@@ -398,7 +407,7 @@ class Blockchain:
                 
                 nonce += 1
                 
-                if nonce > 1000000:  # Añadir un límite máximo para evitar bucles infinitos
+                if nonce > 1000000:
                     raise ValueError("No se encontró un hash válido después de 1,000,000 intentos")
             
             if self.mining_stopped:

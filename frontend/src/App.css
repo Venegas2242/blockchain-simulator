@@ -225,3 +225,37 @@ input[type="text"], input[type="number"] {
 .modal-content button {
   margin-right: 10px;
 }
+
+.settings-container {
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.difficulty-settings {
+  margin-top: 20px;
+}
+
+.difficulty-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.difficulty-button {
+  padding: 10px 20px;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.difficulty-button:hover {
+  background-color: #e7f1ff;
+}
+
+.difficulty-button.active {
+  background-color: #007bff;
+  color: white;
+}
