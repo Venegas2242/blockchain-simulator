@@ -131,65 +131,91 @@ graph TD
 
 </details>
 
-### 🔄 3.3 Sistema de Transacciones y Minado
+### 3.3 🔄 Sistema de Transacciones y Minado
 
-#### 3.3.1 Diagrama de Secuencia de Transacción
+<details>
+<summary><strong>📝 3.3.1 Flujo de Transacciones</strong></summary>
+
+#### Diagrama de Secuencia
+> Ilustra el proceso completo desde la creación hasta la confirmación de una transacción
 
 ```mermaid
 sequenceDiagram
-    participant Usuario
-    participant Frontend
-    participant Backend
-    participant Mempool
-    participant Blockchain
-    
-    Usuario->>Frontend: Inicia transacción
-    Frontend->>Frontend: Prepara datos y firma
-    Frontend->>Backend: POST /transactions/new
-    Backend->>Backend: Verifica firma ECDSA
-    Backend->>Backend: Valida balance
-    Backend->>Mempool: Añade transacción
-    Backend->>Frontend: Confirma recepción
-    Frontend->>Usuario: Muestra confirmación
+participant Usuario
+participant Frontend
+participant Backend
+participant Mempool
+participant Blockchain
 
-    Note over Frontend,Backend: Proceso de Minado
+Usuario->>Frontend: Inicia transacción
+Frontend->>Frontend: Prepara datos y firma
+Frontend->>Backend: POST /transactions/new
+Backend->>Backend: Verifica firma ECDSA
+Backend->>Backend: Valida balance
+Backend->>Mempool: Añade transacción
+Backend->>Frontend: Confirma recepción
+Frontend->>Usuario: Muestra confirmación
 
-    Usuario->>Frontend: Selecciona transacciones
-    Frontend->>Backend: POST /mine
-    Backend->>Mempool: Obtiene transacciones
-    Backend->>Backend: Crea bloque candidato
-    
-    loop Proof of Work
-        Backend->>Backend: Calcula hash
-        Backend->>Backend: Verifica dificultad
-    end
-    
-    Backend->>Blockchain: Añade bloque
-    Backend->>Mempool: Elimina transacciones minadas
-    Backend->>Frontend: Retorna bloque minado
-    Frontend->>Usuario: Actualiza interfaz
+Note over Frontend,Backend: Proceso de Minado
+
+Usuario->>Frontend: Selecciona transacciones
+Frontend->>Backend: POST /mine
+Backend->>Mempool: Obtiene transacciones
+Backend->>Backend: Crea bloque candidato
+
+loop Proof of Work
+Backend->>Backend: Calcula hash
+Backend->>Backend: Verifica dificultad
+end
+
+Backend->>Blockchain: Añade bloque
+Backend->>Mempool: Elimina transacciones minadas
+Backend->>Frontend: Retorna bloque minado
+Frontend->>Usuario: Actualiza interfaz
 ```
 
-#### 3.3.2 Casos de Uso de Minería
+#### Características Principales
+- Verificación de firmas ECDSA
+- Validación de balances
+- Sistema de comisiones
+- Confirmaciones en tiempo real
+</details>
+
+<details>
+<summary><strong>⛏️ 3.3.2 Sistema de Minería</strong></summary>
+
+#### Casos de Uso
+> Proceso de minado y distribución de recompensas
 
 ```mermaid
 graph TD
-    A[Minero] -->|Selecciona| B[Ver Mempool]
-    B -->|Hasta 3 tx| C[Iniciar Minado]
-    C -->|Mining Fee| D[Proof of Work]
-    C -->|Block Reward| E[Coinbase Tx]
-    D -->|Hash Válido| F[Nuevo Bloque]
-    F -->|Verificación| G[Añadir a Cadena]
-    G -->|Actualizar| H[Balances]
-    
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style D fill:#bbf,stroke:#333,stroke-width:2px
-    style F fill:#bfb,stroke:#333,stroke-width:2px
+A[Minero] -->|Selecciona| B[Ver Mempool]
+B -->|Hasta 3 tx| C[Iniciar Minado]
+C -->|Mining Fee| D[Proof of Work]
+C -->|Block Reward| E[Coinbase Tx]
+D -->|Hash Válido| F[Nuevo Bloque]
+F -->|Verificación| G[Añadir a Cadena]
+G -->|Actualizar| H[Balances]
+
+style A fill:#f9f,stroke:#333,stroke-width:2px
+style D fill:#bbf,stroke:#333,stroke-width:2px
+style F fill:#bfb,stroke:#333,stroke-width:2px
 ```
+
+#### Características
+- Selección de hasta 3 transacciones
+- Dificultad ajustable (0-4 ceros)
+- Recompensa base + comisiones
+- Verificación de bloques minados
+</details>
 
 ### 3.4 📜 Smart Contract de Custodia (Escrow)
 
-#### 3.4.1 Diagrama de Estados
+<details>
+<summary><strong>🔄 3.4.1 Estados del Contrato</strong></summary>
+
+#### Diagrama de Estados
+> Estados y transiciones posibles del contrato
 
 ```mermaid
 stateDiagram-v2
@@ -216,7 +242,18 @@ stateDiagram-v2
     end note
 ```
 
-#### 3.4.2 Diagrama de Secuencia de Operación
+#### Características del Sistema
+- Transiciones automáticas
+- Validaciones por estado
+- Timeouts configurables
+- Sistema de disputas
+</details>
+
+<details>
+<summary><strong>🤝 3.4.2 Operaciones del Contrato</strong></summary>
+
+#### Diagrama de Secuencia
+> Interacciones entre participantes
 
 ```mermaid
 sequenceDiagram
@@ -247,7 +284,19 @@ sequenceDiagram
     end
 ```
 
-#### 3.4.3 Flujo de Comisiones
+#### Operaciones Principales
+- Creación de acuerdo
+- Confirmación de vendedor
+- Registro de envío
+- Confirmación de recepción
+- Gestión de disputas
+</details>
+
+<details>
+<summary><strong>💰 3.4.3 Sistema de Comisiones</strong></summary>
+
+#### Diagrama de Flujo Financiero
+> Distribución de fondos y comisiones
 
 ```mermaid
 graph LR
@@ -264,7 +313,19 @@ graph LR
     style C fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
-### 3.5 Interacción entre Componentes
+#### Desglose de Comisiones
+- Mediador: 1%
+- Minería: 0.1% × 3
+- Monto principal: 98.7%
+</details>
+
+### 3.5 🔗 Arquitectura del Sistema
+
+<details>
+<summary><strong>🏗️ Interacción entre Componentes</strong></summary>
+
+#### Diagrama de Arquitectura
+> Conexiones entre módulos del sistema
 
 ```mermaid
 graph TD
@@ -291,6 +352,7 @@ graph TD
     style C fill:#bfb,stroke:#333,stroke-width:2px
     style L fill:#ff9,stroke:#333,stroke-width:2px
 ```
+</details>
 
 ## 💡 4. Aplicaciones Prácticas Detalladas
 
