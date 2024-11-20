@@ -50,6 +50,7 @@ Un simulador de blockchain educativo que implementa los conceptos fundamentales 
 
 ## 📁 Estructura del Proyecto
 
+```
 blockchain-simulator/
 ├── backend/
 │   ├── app.py                      # Servidor Flask y endpoints API
@@ -77,8 +78,9 @@ blockchain-simulator/
 │   └── package.json                   # Dependencias de Node.js
 ├── blockchain-analysis.md             # Análisis técnico detallado
 └── README.md                          # Documentación principal
-## 🚀 Instalación y Configuración
+```
 
+## 🚀 Instalación y Configuración
 
 ### Backend
 
