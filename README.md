@@ -156,7 +156,7 @@ npm start
 ## 🔍 Análisis y Documentación
 
 Para un análisis detallado de la implementación, arquitectura y características técnicas, consulta:
-[BLOCKCHAIN-ANALYSIS.md](BLOCKCHAIN-ANALYSIS.md)
+[BLOCKCHAIN-ANALYSIS.md](blockchain-analysis.md)
 
 ## 📚 Referencias
 ---
