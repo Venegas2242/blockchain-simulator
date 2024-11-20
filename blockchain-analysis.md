@@ -51,39 +51,73 @@ graph TD
 <details>
 <summary>📝 Ejemplo Real de Generación</summary>
 
-1. **Generación de Entropía (128 bits)**
-   - Sistema genera 16 bytes de entropía seguros
-   - Ejemplo: `b9607f3e17a28b93fac8d225f029a21f`
+### 1️⃣ Entropía Inicial
+Generamos 16 bytes de entropía aleatoria segura:
+```
+b9607f3e17a28b93fac8d225f029a21f
+```
 
-2. **Cálculo de Checksum**
-   - SHA256 de la entropía produce hash completo
-   - Se toman primeros 4 bits (ENT/32): `0111`
+### 2️⃣ Proceso de Frase Mnemónica
+1. Calculamos el checksum SHA256 de la entropía
+2. Tomamos los primeros 4 bits del checksum: `0111`
+3. Combinamos entropía + checksum
+4. Dividimos en 12 grupos de 11 bits cada uno
+5. Convertimos cada grupo en una palabra usando el diccionario BIP39
 
-3. **Concatenación y División**
-   - Se combinan entropía y checksum (132 bits)
-   - Se divide en 12 grupos de 11 bits cada uno
+Resultado: 
+```
+rich advance sorry consider chunk six twelve bottom chalk life hammer discover
+```
 
-4. **Frase Mnemónica**
-   - Cada grupo se convierte en una palabra del diccionario BIP39
-   - Resultado: `rich advance sorry consider chunk six twelve bottom chalk life hammer discover`
+### 3️⃣ Generación de Semilla
+1. Utilizamos PBKDF2 (Password-Based Key Derivation Function 2) 
+   - Input: la frase mnemónica
+   - Salt: "mnemonic" (sin passphrase adicional)
+   - 2048 iteraciones
+   - Resultado: semilla de 64 bytes
 
-5. **Generación de Semilla**
-   - PBKDF2-HMAC-SHA512 con 2048 iteraciones
-   - Salt: "mnemonic"
-   - Produce semilla de 64 bytes
+Semilla resultante:
+```
+eb7c262128ca9c2df68942449e526347e5fbac690ba31919cdd9309f3d822eac0e1b5da78caac8dc7464e22581265bb79f80507984246dc0184235c6595c94ba
+```
 
-6. **Derivación de Clave Maestra**
-   - HMAC-SHA512 con clave "Bitcoin seed"
-   - Genera Master Private Key y Chain Code
+### 4️⃣ Derivación de Clave Maestra
+1. Aplicamos HMAC-SHA512
+   - Input: la semilla
+   - Key: "Bitcoin seed"
+2. Del resultado de 64 bytes:
+   - Primeros 32 bytes → Master Private Key:
+     ```
+     6f5dd801cee8b5fb32e8b53d415866d128fe78aa72cc554a6ead87175188989d
+     ```
+   - Últimos 32 bytes → Chain Code (no utilizado):
+     ```
+     aa2736bc6b3c4875a120a7e3388cce374ead3c7a9362c4d08cef99783cded8b4
+     ```
 
-7. **Generación de Clave Pública**
-   - Multiplicación de punto curva elíptica
-   - Curva secp256k1
+### 5️⃣ Generación de Clave Pública
+1. Utilizamos la curva elíptica secp256k1
+2. Multiplicamos el punto generador por la clave privada
+3. Obtenemos la clave pública sin comprimir (64 bytes):
+```
+57515390831c62952d73de0605260e9f11beaf2bd6429f2c2d13d960a79ca9e4cb1e4f9a737cbc0232a0803e0c0a1a81673d0b64e3200a3958a1945a9ae5de23
+```
 
-8. **Generación de Dirección**
-   - SHA256 de clave pública
-   - RIPEMD160 del resultado
-   - Dirección final: `f2025103a84d2ba893fd942a8140d09520958060`
+### 6️⃣ Creación de Dirección
+1. Aplicamos SHA256 a la clave pública
+2. Aplicamos RIPEMD160 al resultado
+3. Obtenemos la dirección final:
+```
+f2025103a84d2ba893fd942a8140d09520958060
+```
+
+### 7️⃣ Protección de Clave Privada
+1. Generamos un salt aleatorio de 16 bytes
+2. Utilizamos la contraseña del usuario ("1234") con PBKDF2
+3. Generamos un IV aleatorio
+4. Ciframos la clave privada usando AES-256-CBC
+5. Combinamos: salt + IV + datos cifrados
+6. Codificamos en base64 para almacenamiento seguro
 
 </details>
 
