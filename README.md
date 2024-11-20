@@ -159,9 +159,6 @@ Para un análisis detallado de la implementación, arquitectura y característic
 [BLOCKCHAIN-ANALYSIS.md](BLOCKCHAIN-ANALYSIS.md)
 
 ## 📚 Referencias
-
-[Tus referencias actuales]
-
 ---
 <div align="center">
 
