@@ -13,7 +13,6 @@ Un simulador de blockchain educativo que implementa los conceptos fundamentales 
 - Dificultad de minado ajustable (0-4 ceros)
 
 ### 🔐 Seguridad
-- Generación de claves privadas mediante derivación BIP32
 - Cifrado AES-256-CBC para protección de claves privadas
 - Verificación completa de integridad en la cadena
 - Sistema de firmas digitales con curva secp256k1
