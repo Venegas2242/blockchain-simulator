@@ -484,10 +484,13 @@ graph LR
   - Revocabilidad
 
 - **Aplicaciones**
-  - KYC financiero
+  - KYC financiero (Know Your Customer)
+      - Ejemplo: Un cliente demuestra que vive en un país autorizado sin compartir su dirección completa.
   - Acceso a servicios
+      - Ejemplo: Usuarios se autentican para usar plataformas
   - Votación electrónica
   - Control de acceso
+      - Ejemplo: Identificación para acceder a edificios, eventos o sistemas de manera segura y anónima.
 
 #### 🔐 4.3.3 Verificación Zero-Knowledge
 - **Casos de Uso**
@@ -508,27 +511,22 @@ graph LR
 
 ### 🔒 5.1 Zero-Knowledge Proofs
 - zk-SNARKs para privacidad
+    - Transacciones privadas ocultando remitentes, destinatarios y montos.
 - Transacciones confidenciales
-- Pruebas de rango
-- Verificación anónima
+    - Mecanismos para ocultar detalles de transacciones financieras sin comprometer su validez.
+- Ring signatures
 
-### ✍️ 5.2 Multifirma
-- Esquemas m-de-n
-- Carteras multifirma
-- Firmas de umbral
-- Gobierno corporativo
-
-### 🤖 5.3 Inteligencia Artificial
+### 🤖 5.2 Inteligencia Artificial
 - Detección de fraudes
 - Optimización de comisiones
-- Predicción de congestión
 - Análisis de patrones
 
-### 🔄 5.4 Otras Mejoras
-- Sidechains para escalabilidad
-- Ring signatures
+### 🔄 5.3 Otras Mejoras
+- Multifirma (esquemas m-de-n)
+    - Decisiones colectivas.
 - Proof of Stake
 - Smart Contracts avanzados
+- Generación de claves privadas mediante derivación BIP32
 
 ## 📚 6. Referencias y Recursos
 
